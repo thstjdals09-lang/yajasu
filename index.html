@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,sendEmailVerification}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import{getDatabase,ref,set,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const app=initializeApp({
@@ -32,33 +32,22 @@ window._fbSave=function(data){
   },800);
 };
 
-onAuthStateChanged(auth,async user=>{
-  if(!user){showLoginScreen();return;}
+onAuthStateChanged(auth,user=>{
+  if(!user){
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('appShell').style.display='none';
+    return;
+  }
   document.getElementById('loginScreen').style.display='none';
-  document.getElementById('verifyScreen').style.display='none';
   document.getElementById('appShell').style.display='block';
   document.getElementById('userEmailLabel').textContent=user.email;
   onValue(ref(db,'tournament'),snap=>{
     const data=snap.val();
-    if(data&&window._appReady){
-      window._loadFirebaseData(data);
-    } else if(data&&!window._appReady){
-      window._pendingFbData=data;
-    }
+    if(!data)return;
+    if(window._appReady)window._loadFirebaseData(data);
+    else window._pendingFbData=data;
   });
 });
-
-function showLoginScreen(){
-  document.getElementById('loginScreen').style.display='flex';
-  document.getElementById('verifyScreen').style.display='none';
-  document.getElementById('appShell').style.display='none';
-}
-function showVerifyScreen(user){
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('verifyScreen').style.display='flex';
-  document.getElementById('appShell').style.display='none';
-  document.getElementById('verifyEmailTxt').textContent=user.email;
-}
 
 document.addEventListener('DOMContentLoaded',()=>{
   const loginBtn=document.getElementById('loginBtn');
@@ -70,9 +59,15 @@ document.addEventListener('DOMContentLoaded',()=>{
     err.textContent='';
     if(!email||!pw){err.textContent='이메일과 비밀번호를 입력해주세요.';return;}
     loginBtn.textContent='로그인 중...';loginBtn.disabled=true;
-    try{await signInWithEmailAndPassword(auth,email,pw);}
-    catch(e){
-      const m={'auth/invalid-credential':'이메일 또는 비밀번호가 올바르지 않습니다.','auth/too-many-requests':'잠시 후 다시 시도해주세요.'};
+    try{
+      await signInWithEmailAndPassword(auth,email,pw);
+    }catch(e){
+      const m={
+        'auth/invalid-credential':'이메일 또는 비밀번호가 올바르지 않습니다.',
+        'auth/user-not-found':'등록되지 않은 계정입니다.',
+        'auth/wrong-password':'비밀번호가 올바르지 않습니다.',
+        'auth/too-many-requests':'잠시 후 다시 시도해주세요.'
+      };
       err.textContent=m[e.code]||'로그인 실패: '+e.message;
       loginBtn.textContent='로그인';loginBtn.disabled=false;
     }
@@ -80,22 +75,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   loginBtn.addEventListener('click',doLogin);
   emailIn.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   pwIn.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-
-  document.getElementById('checkVerifiedBtn').addEventListener('click',async()=>{
-    const u=auth.currentUser;if(!u)return;
-    await u.reload();
-    if(u.emailVerified)location.reload();
-    else alert('아직 인증이 완료되지 않았습니다.');
+  document.getElementById('logoutBtn').addEventListener('click',()=>{
+    if(confirm('로그아웃 하시겠어요?'))signOut(auth);
   });
-  document.getElementById('resendVerifyBtn').addEventListener('click',async()=>{
-    const u=auth.currentUser;if(!u)return;
-    await sendEmailVerification(u);alert('인증 메일을 재발송했습니다.');
-  });
-  document.getElementById('logoutVerifyBtn').addEventListener('click',()=>signOut(auth));
-  document.getElementById('logoutBtn').addEventListener('click',()=>{if(confirm('로그아웃 하시겠어요?'))signOut(auth);});
 });
-
-window._fbReady=true;
 </script>
 <style>
 :root{
@@ -315,18 +298,6 @@ input[type=color]{padding:2px;height:34px;border-radius:var(--r)}
     <div class="auth-field"><label>비밀번호</label><input type="password" id="loginPw" placeholder="비밀번호"></div>
     <div class="auth-err" id="loginErr"></div>
     <button class="auth-btn" id="loginBtn">로그인</button>
-  </div>
-</div>
-
-<!-- 이메일 인증 대기 화면 -->
-<div class="auth-screen" id="verifyScreen">
-  <div class="auth-box">
-    <div class="auth-logo">HOLDEM MGR</div>
-    <div class="auth-title">이메일 인증 필요</div>
-    <div class="auth-sub"><span id="verifyEmailTxt"></span>로 인증 메일을 발송했습니다.<br>메일의 링크를 클릭한 후 아래 버튼을 눌러주세요.</div>
-    <button class="auth-btn" id="checkVerifiedBtn">인증 완료 확인</button>
-    <button class="auth-link" id="resendVerifyBtn">인증 메일 재발송</button>
-    <button class="auth-link muted" id="logoutVerifyBtn">다른 계정으로 로그인</button>
   </div>
 </div>
 
