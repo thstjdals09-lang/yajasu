@@ -34,10 +34,9 @@ window._fbSave=function(data){
 
 onAuthStateChanged(auth,async user=>{
   if(!user){showLoginScreen();return;}
-  if(!user.emailVerified){showVerifyScreen(user);return;}
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('verifyScreen').style.display='none';
-  document.getElementById('appShell').style.display='flex';
+  document.getElementById('appShell').style.display='block';
   document.getElementById('userEmailLabel').textContent=user.email;
   onValue(ref(db,'tournament'),snap=>{
     const data=snap.val();
