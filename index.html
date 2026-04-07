@@ -497,10 +497,10 @@ const MAX=9;
 const SAVE_KEY='holdem_mgr_v1';
 
 let evs=[
-  {id:1,name:'GTD',startT:1,msg:'',maxSeat:9,open:false},
-  {id:2,name:'미들스택',startT:5,msg:'',maxSeat:9,open:false},
-  {id:3,name:'FCS',startT:10,msg:'',maxSeat:9,open:false},
-  {id:4,name:'하이롤러',startT:20,msg:'',maxSeat:9,open:false}
+  {id:1,name:'GTD',startT:1,msg:'',maxSeat:9,tables:[],open:false},
+  {id:2,name:'미들스택',startT:5,msg:'',maxSeat:9,tables:[],open:false},
+  {id:3,name:'FCS',startT:10,msg:'',maxSeat:9,tables:[],open:false},
+  {id:4,name:'하이롤러',startT:20,msg:'',maxSeat:9,tables:[],open:false}
 ];
 let nxEv=5;
 let sources=['현장구매','온라인','이벤트권','프로모션','초대권'];
@@ -704,7 +704,8 @@ function pills(cid,cur,fn,showT){
   const el=document.getElementById(cid);if(!el)return;el.innerHTML='';
   evs.forEach(e=>{
     const d=document.createElement('div');d.className='ep'+(cur===e.id?' on':'');
-    d.innerHTML=e.name+(showT?`<span class="sub">T${e.startT}〜</span>`:'');
+    const tInfo=e.tables&&e.tables.length?`<span class="sub">${e.tables.length}테이블</span>`:`<span class="sub">T${e.startT}〜</span>`;
+    d.innerHTML=e.name+(showT?tInfo:'');
     d.onclick=()=>fn(e.id);el.appendChild(d);
   });
 }
@@ -713,14 +714,34 @@ function balPills(){pills('balPills',balEv,id=>{balEv=id;cancelMove();renderBal(
 function refreshSrc(){const el=document.getElementById('srcIn');if(!el)return;el.innerHTML=sources.map(s=>`<option>${s}</option>`).join('');}
 
 function getMax(eid){return(evs.find(e=>e.id===eid)||{}).maxSeat||MAX;}
+function getTables(eid){
+  const ev=evs.find(e=>e.id===eid);
+  if(ev&&ev.tables&&ev.tables.length>0)return [...ev.tables].sort((a,b)=>a-b);
+  return null;
+}
 
 function assignSeat(eid){
-  const ev=evs.find(e=>e.id===eid),st=ev?ev.startT:1,max=getMax(eid);
+  const ev=evs.find(e=>e.id===eid),max=getMax(eid);
   const ep=ps.filter(p=>p.eventId===eid&&!p.busted),tm={};
   ep.forEach(p=>{tm[p.table]=(tm[p.table]||0)+1;});
-  const ts=Object.keys(tm).map(Number).sort((a,b)=>a-b);
-  for(const t of ts){if(tm[t]<max){const taken=ep.filter(p=>p.table===t).map(p=>p.seat);for(let s=1;s<=max;s++)if(!taken.includes(s))return{table:t,seat:s};}}
-  return{table:ts.length?Math.max(...ts)+1:st,seat:1};
+  const usedTables=Object.keys(tm).map(Number).sort((a,b)=>a-b);
+  const allowedTables=getTables(eid);
+
+  if(allowedTables){
+    for(const t of allowedTables){
+      const cnt=tm[t]||0;
+      if(cnt<max){
+        const taken=ep.filter(p=>p.table===t).map(p=>p.seat);
+        for(let s=1;s<=max;s++)if(!taken.includes(s))return{table:t,seat:s};
+      }
+    }
+    const nextT=allowedTables.find(t=>!usedTables.includes(t));
+    return{table:nextT||allowedTables[0],seat:1};
+  }
+
+  const st=ev?ev.startT:1;
+  for(const t of usedTables){if(tm[t]<max){const taken=ep.filter(p=>p.table===t).map(p=>p.seat);for(let s=1;s<=max;s++)if(!taken.includes(s))return{table:t,seat:s};}}
+  return{table:usedTables.length?Math.max(...usedTables)+1:st,seat:1};
 }
 
 function doReg(){
@@ -1040,24 +1061,57 @@ function showMoveRc(items){
 function closeOv(id){document.getElementById(id).classList.remove('on');}
 function printBalRc(){if(!lastMoveItems.length)return;openWin(lastMoveItems.map(({p,fromTable})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable)}</div>`).join(''));}
 
+function parseTableInput(str){
+  const nums=new Set();
+  str.split(',').forEach(part=>{
+    part=part.trim();
+    if(part.includes('-')){
+      const[a,b]=part.split('-').map(Number);
+      if(!isNaN(a)&&!isNaN(b))for(let i=Math.min(a,b);i<=Math.max(a,b);i++)nums.add(i);
+    }else{const n=parseInt(part);if(!isNaN(n)&&n>0)nums.add(n);}
+  });
+  return [...nums].sort((a,b)=>a-b);
+}
+
+function tableListToStr(arr){
+  if(!arr||!arr.length)return'';
+  const sorted=[...arr].sort((a,b)=>a-b);
+  const ranges=[];let s=sorted[0],e=sorted[0];
+  for(let i=1;i<sorted.length;i++){
+    if(sorted[i]===e+1){e=sorted[i];}
+    else{ranges.push(s===e?`${s}`:`${s}-${e}`);s=sorted[i];e=sorted[i];}
+  }
+  ranges.push(s===e?`${s}`:`${s}-${e}`);
+  return ranges.join(', ');
+}
+
 function renderEvList(){
-  document.getElementById('evList').innerHTML=evs.map(e=>`
-    <div class="ev-item${e.open?' eo':''}" onclick="togEv(${e.id})">
+  document.getElementById('evList').innerHTML=evs.map(e=>{
+    const hasTables=e.tables&&e.tables.length>0;
+    const tStr=hasTables?tableListToStr(e.tables):'';
+    return`<div class="ev-item${e.open?' eo':''}" onclick="togEv(${e.id})">
       <div style="flex:1;font-size:13px;font-weight:600">${e.name}</div>
-      <span style="font-size:11px;color:var(--tx3)">T${e.startT}〜 · 최대 ${e.maxSeat||9}명</span>
+      <span style="font-size:11px;color:var(--tx3)">${hasTables?`T${e.tables.length}개 지정`:`T${e.startT}〜`} · 최대 ${e.maxSeat||9}명</span>
       <span style="font-size:12px;color:var(--tx3)">${e.open?'▲':'▼'}</span>
     </div>
     <div class="ev-exp${e.open?' eo':''}">
-      <div class="fr fr3">
-        <div class="fg"><label>시작 테이블 번호</label><input type="number" min="1" value="${e.startT}" oninput="evs.find(x=>x.id===${e.id}).startT=parseInt(this.value)||1;save();renderEvList();regPills()"></div>
+      <div class="fr fr2" style="margin-bottom:10px">
         <div class="fg"><label>테이블 최대 인원 (1~9)</label><input type="number" min="1" max="9" value="${e.maxSeat||9}" oninput="evs.find(x=>x.id===${e.id}).maxSeat=Math.min(9,Math.max(1,parseInt(this.value)||9));save();renderEvList()"></div>
-        <div class="fg"><label>영수증 전용 문구</label><input type="text" value="${e.msg}" placeholder="예: 바이인 ₩100,000" oninput="evs.find(x=>x.id===${e.id}).msg=this.value;save()"></div>
+        <div class="fg"><label>영수증 전용 문구</label><input type="text" value="${e.msg||''}" placeholder="예: 바이인 ₩100,000" oninput="evs.find(x=>x.id===${e.id}).msg=this.value;save()"></div>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn btn-d btn-xs" onclick="delEv(${e.id})">삭제</button></div>
-    </div>`).join('');
+      <div class="fg" style="margin-bottom:8px">
+        <label>사용할 테이블 번호 <span style="color:var(--tx3);font-weight:400">(예: 1, 3, 5-10, 15 — 비워두면 순차 배정)</span></label>
+        <input type="text" value="${tStr}" placeholder="예: 1-5, 7, 10-20" 
+          oninput="(function(v){const ev=evs.find(x=>x.id===${e.id});ev.tables=v.trim()?parseTableInput(v):[];save();renderEvList();regPills();balPills();})(this.value)">
+        ${hasTables?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${e.tables.slice(0,20).map(t=>`<span style="font-size:11px;padding:2px 7px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-d);border-radius:20px">T${t}</span>`).join('')}${e.tables.length>20?`<span style="font-size:11px;color:var(--tx3)">+${e.tables.length-20}개 더</span>`:''}</div>`:''}
+      </div>
+      ${!hasTables?`<div class="fg" style="margin-bottom:8px"><label>시작 테이블 번호 (테이블 지정 없을 때)</label><input type="number" min="1" value="${e.startT||1}" oninput="evs.find(x=>x.id===${e.id}).startT=parseInt(this.value)||1;save();renderEvList();regPills()"></div>`:''}
+      <div style="display:flex;justify-content:flex-end;margin-top:4px"><button class="btn btn-d btn-xs" onclick="delEv(${e.id})">삭제</button></div>
+    </div>`;
+  }).join('');
 }
 function togEv(id){const e=evs.find(x=>x.id===id);if(e)e.open=!e.open;renderEvList();}
-function addEv(){const inp=document.getElementById('newEvName'),n=inp.value.trim();if(!n)return;const maxT=evs.length?Math.max(...evs.map(e=>e.startT))+10:1;evs.push({id:nxEv++,name:n,startT:maxT,msg:'',maxSeat:9,open:false});inp.value='';save();renderEvList();regPills();}
+function addEv(){const inp=document.getElementById('newEvName'),n=inp.value.trim();if(!n)return;const maxT=evs.length?Math.max(...evs.map(e=>e.startT||1))+10:1;evs.push({id:nxEv++,name:n,startT:maxT,msg:'',maxSeat:9,tables:[],open:false});inp.value='';save();renderEvList();regPills();}
 function delEv(id){if(ps.some(p=>p.eventId===id)){alert('참가자가 있는 이벤트는 삭제할 수 없습니다.');return;}evs=evs.filter(e=>e.id!==id);if(selEv===id)selEv=null;if(balEv===id)balEv=null;save();renderEvList();regPills();}
 function renderSrcMgmt(){document.getElementById('srcMgmt').innerHTML=sources.map((s,i)=>`<div class="src-row"><input type="text" value="${s}" oninput="sources[${i}]=this.value;refreshSrc();save()"><button class="btn btn-d btn-xs" onclick="delSrc(${i})">삭제</button></div>`).join('');}
 function addSrc(){const inp=document.getElementById('newSrcName'),n=inp.value.trim();if(!n)return;sources.push(n);inp.value='';save();renderSrcMgmt();refreshSrc();}
