@@ -6,6 +6,98 @@
 <title>홀덤 토너먼트 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,sendEmailVerification}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import{getDatabase,ref,set,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const app=initializeApp({
+  apiKey:"AIzaSyDOhs7nLcpKSKmuoAlGXwU11UFHOaN5Vgk",
+  authDomain:"seongmin-2a1e9.firebaseapp.com",
+  databaseURL:"https://seongmin-2a1e9-default-rtdb.firebaseio.com",
+  projectId:"seongmin-2a1e9",
+  storageBucket:"seongmin-2a1e9.firebasestorage.app",
+  messagingSenderId:"977066197284",
+  appId:"1:977066197284:web:ceeb5d17254301cf46f3b1"
+});
+const auth=getAuth(app);
+const db=getDatabase(app);
+
+let fbSyncTimer=null;
+window._fbSave=function(data){
+  if(!auth.currentUser)return;
+  clearTimeout(fbSyncTimer);
+  fbSyncTimer=setTimeout(()=>{
+    set(ref(db,'tournament'),data).catch(e=>console.error('fb sync',e));
+  },800);
+};
+
+onAuthStateChanged(auth,async user=>{
+  if(!user){showLoginScreen();return;}
+  if(!user.emailVerified){showVerifyScreen(user);return;}
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('verifyScreen').style.display='none';
+  document.getElementById('appShell').style.display='flex';
+  document.getElementById('userEmailLabel').textContent=user.email;
+  onValue(ref(db,'tournament'),snap=>{
+    const data=snap.val();
+    if(data&&window._appReady){
+      window._loadFirebaseData(data);
+    } else if(data&&!window._appReady){
+      window._pendingFbData=data;
+    }
+  });
+});
+
+function showLoginScreen(){
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('verifyScreen').style.display='none';
+  document.getElementById('appShell').style.display='none';
+}
+function showVerifyScreen(user){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('verifyScreen').style.display='flex';
+  document.getElementById('appShell').style.display='none';
+  document.getElementById('verifyEmailTxt').textContent=user.email;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const loginBtn=document.getElementById('loginBtn');
+  const emailIn=document.getElementById('loginEmail');
+  const pwIn=document.getElementById('loginPw');
+  async function doLogin(){
+    const email=emailIn.value.trim(),pw=pwIn.value;
+    const err=document.getElementById('loginErr');
+    err.textContent='';
+    if(!email||!pw){err.textContent='이메일과 비밀번호를 입력해주세요.';return;}
+    loginBtn.textContent='로그인 중...';loginBtn.disabled=true;
+    try{await signInWithEmailAndPassword(auth,email,pw);}
+    catch(e){
+      const m={'auth/invalid-credential':'이메일 또는 비밀번호가 올바르지 않습니다.','auth/too-many-requests':'잠시 후 다시 시도해주세요.'};
+      err.textContent=m[e.code]||'로그인 실패: '+e.message;
+      loginBtn.textContent='로그인';loginBtn.disabled=false;
+    }
+  }
+  loginBtn.addEventListener('click',doLogin);
+  emailIn.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  pwIn.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+  document.getElementById('checkVerifiedBtn').addEventListener('click',async()=>{
+    const u=auth.currentUser;if(!u)return;
+    await u.reload();
+    if(u.emailVerified)location.reload();
+    else alert('아직 인증이 완료되지 않았습니다.');
+  });
+  document.getElementById('resendVerifyBtn').addEventListener('click',async()=>{
+    const u=auth.currentUser;if(!u)return;
+    await sendEmailVerification(u);alert('인증 메일을 재발송했습니다.');
+  });
+  document.getElementById('logoutVerifyBtn').addEventListener('click',()=>signOut(auth));
+  document.getElementById('logoutBtn').addEventListener('click',()=>{if(confirm('로그아웃 하시겠어요?'))signOut(auth);});
+});
+
+window._fbReady=true;
+</script>
 <style>
 :root{
   --bg:#0f0f0f;--bg2:#161616;--bg3:#1e1e1e;--bg4:#252525;
@@ -196,11 +288,51 @@ input[type=color]{padding:2px;height:34px;border-radius:var(--r)}
 .save-indicator{font-size:11px;color:var(--tx3);display:flex;align-items:center;gap:5px}
 .save-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
 
-.divider{height:1px;background:var(--bd);margin:16px 0}
-.empty{text-align:center;padding:3rem 1rem;color:var(--tx3);font-size:13px}
+.auth-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:var(--bg)}
+.auth-box{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--rl);padding:2.5rem 2rem;width:100%;max-width:380px}
+.auth-logo{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.1em;color:var(--tx2);margin-bottom:2rem;text-align:center}
+.auth-title{font-size:18px;font-weight:600;margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--tx3);margin-bottom:1.5rem;line-height:1.6}
+.auth-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.auth-field label{font-size:11px;font-weight:500;color:var(--tx3);letter-spacing:.04em}
+.auth-btn{width:100%;padding:11px;background:var(--blue);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;font-family:var(--font)}
+.auth-btn:hover{background:#2563eb}
+.auth-btn:disabled{opacity:.6;cursor:not-allowed}
+.auth-err{font-size:12px;color:var(--red);min-height:16px;margin-top:6px}
+.auth-link{font-size:12px;color:var(--blue);cursor:pointer;background:none;border:none;padding:0;margin-top:12px;display:block;text-align:center;font-family:var(--font)}
+.auth-link:hover{text-decoration:underline}
+.auth-link.muted{color:var(--tx3)}
 </style>
 </head>
 <body>
+
+<!-- 로그인 화면 -->
+<div class="auth-screen" id="loginScreen" style="display:flex">
+  <div class="auth-box">
+    <div class="auth-logo">HOLDEM MGR</div>
+    <div class="auth-title">로그인</div>
+    <div class="auth-sub">승인된 계정으로 로그인하세요</div>
+    <div class="auth-field"><label>이메일</label><input type="email" id="loginEmail" placeholder="example@email.com"></div>
+    <div class="auth-field"><label>비밀번호</label><input type="password" id="loginPw" placeholder="비밀번호"></div>
+    <div class="auth-err" id="loginErr"></div>
+    <button class="auth-btn" id="loginBtn">로그인</button>
+  </div>
+</div>
+
+<!-- 이메일 인증 대기 화면 -->
+<div class="auth-screen" id="verifyScreen">
+  <div class="auth-box">
+    <div class="auth-logo">HOLDEM MGR</div>
+    <div class="auth-title">이메일 인증 필요</div>
+    <div class="auth-sub"><span id="verifyEmailTxt"></span>로 인증 메일을 발송했습니다.<br>메일의 링크를 클릭한 후 아래 버튼을 눌러주세요.</div>
+    <button class="auth-btn" id="checkVerifiedBtn">인증 완료 확인</button>
+    <button class="auth-link" id="resendVerifyBtn">인증 메일 재발송</button>
+    <button class="auth-link muted" id="logoutVerifyBtn">다른 계정으로 로그인</button>
+  </div>
+</div>
+
+<!-- 앱 본체 -->
+<div id="appShell" style="display:none;width:100%;height:100vh">
 <div class="shell">
 <div class="sidebar">
   <div class="s-logo">
@@ -233,6 +365,10 @@ input[type=color]{padding:2px;height:34px;border-radius:var(--r)}
     <div class="ss"><span class="ss-l">버스트</span><span class="ss-v" id="stBust">0</span></div>
     <div class="ss"><span class="ss-l">남은 자리</span><span class="ss-v" id="stEmpty" style="color:var(--blue)">0</span></div>
     <div class="ss"><span class="ss-l">테이블</span><span class="ss-v" id="stTables">0</span></div>
+  </div>
+  <div style="padding:10px 18px;border-top:1px solid var(--bd)">
+    <div style="font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px" id="userEmailLabel"></div>
+    <button id="logoutBtn" style="width:100%;padding:6px;font-size:11px;background:var(--red-bg);border:1px solid var(--red-d);color:var(--red);border-radius:var(--r);cursor:pointer;font-family:var(--font)">로그아웃</button>
   </div>
 </div>
 
@@ -384,6 +520,7 @@ input[type=color]{padding:2px;height:34px;border-radius:var(--r)}
 
 </div>
 </div>
+</div><!-- /appShell -->
 
 <script>
 const MAX=9;
@@ -429,14 +566,31 @@ let RC={
   }
 };
 
-/* ── localStorage 저장/불러오기 ── */
+/* ── 데이터 저장/불러오기 ── */
 let saveTimer=null;
+
+function buildSaveData(){
+  return{evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,RC};
+}
+
+function applyData(data){
+  if(data.evs)evs=data.evs;
+  if(data.nxEv)nxEv=data.nxEv;
+  if(data.sources)sources=data.sources;
+  if(data.ps)ps=data.ps.map(p=>({...p,time:new Date(p.time)}));
+  if(data.nxId)nxId=data.nxId;
+  if(data.regClosed!==undefined)regClosed=data.regClosed||{};
+  if(data.regClosedAt)regClosedAt=data.regClosedAt||{};
+  if(data.RC)RC={entry:{...RC.entry,...(data.RC.entry||{})},move:{...RC.move,...(data.RC.move||{})}};
+}
+
 function save(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{
     try{
-      const data={evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,RC};
+      const data=buildSaveData();
       localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+      if(window._fbSave)window._fbSave(data);
       const el=document.getElementById('saveIndicator');
       if(el)el.innerHTML='<div class="save-dot"></div><span>저장됨</span>';
     }catch(e){console.error('save error',e);}
@@ -447,17 +601,19 @@ function load(){
   try{
     const raw=localStorage.getItem(SAVE_KEY);
     if(!raw)return;
-    const data=JSON.parse(raw);
-    if(data.evs)evs=data.evs;
-    if(data.nxEv)nxEv=data.nxEv;
-    if(data.sources)sources=data.sources;
-    if(data.ps)ps=data.ps.map(p=>({...p,time:new Date(p.time)}));
-    if(data.nxId)nxId=data.nxId;
-    if(data.regClosed!==undefined)regClosed=data.regClosed||{};
-    if(data.regClosedAt)regClosedAt=data.regClosedAt||{};
-    if(data.RC)RC={...RC,...data.RC};
+    applyData(JSON.parse(raw));
   }catch(e){console.error('load error',e);}
 }
+
+window._loadFirebaseData=function(data){
+  applyData(data);
+  regPills();balPills();refreshSrc();updateStats();updateRegUI();
+  const active=document.querySelector('.view.on');
+  if(active){const id=active.id;if(id==='v-bal')renderBal();if(id==='v-list')renderList();}
+};
+
+window._appReady=false;
+window._pendingFbData=null;
 
 function exportBackup(){
   const data={evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,RC};
@@ -940,6 +1096,11 @@ function resetAll(){if(!confirm('모든 참가자 데이터를 초기화할까�
 
 load();
 regPills();balPills();refreshSrc();updateStats();updateRegUI();
+window._appReady=true;
+if(window._pendingFbData){
+  window._loadFirebaseData(window._pendingFbData);
+  window._pendingFbData=null;
+}
 </script>
 </body>
 </html>
