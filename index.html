@@ -1179,10 +1179,11 @@ function updatePrev(){
 
 function getPrintCss(){return`*{box-sizing:border-box;margin:0;padding:0}body{margin:0;padding:0;background:#fff}.pages{display:flex;flex-wrap:wrap}.page{width:72mm;min-height:100mm;padding:6mm;border:1px dashed #ccc;margin:2mm;position:relative;overflow:hidden}@media print{body{margin:0}.pages{display:flex}.page{border:none;margin:0;break-inside:avoid}}`;}
 function openWin(pages){
-  const w=window.open('','_blank','width=720,height=800');
+  const w=window.open('','_blank','width=1,height=1,left=0,top=0');
   if(!w){alert('팝업이 차단되었습니다.\n브라우저 주소창의 팝업 차단 아이콘을 클릭해서 허용해주세요.');return;}
   w.document.write(`<html><head><title>영수증</title><style>${getPrintCss()}</style></head><body><div class="pages">${pages}</div></body></html>`);
-  w.document.close();setTimeout(()=>w.print(),500);
+  w.document.close();
+  setTimeout(()=>{w.print();setTimeout(()=>w.close(),500);},400);
 }
 
 function showRegRc(p){
