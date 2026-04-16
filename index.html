@@ -184,9 +184,9 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
 /* 스탯 카드 */
 .sg{display:grid;gap:8px;margin-bottom:16px}
-.sc{background:var(--bg2);border:1.5px solid var(--bd);border-radius:var(--rl);padding:12px 14px}
-.sc .l{font-size:11px;color:var(--tx3);margin-bottom:4px;font-weight:500}
-.sc .v{font-size:22px;font-weight:700;font-family:var(--mono);line-height:1}
+.sc{background:var(--bg2);border:1.5px solid var(--bd);border-radius:var(--rl);padding:14px 16px}
+.sc .l{font-size:12px;color:var(--tx3);margin-bottom:6px;font-weight:500}
+.sc .v{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1}
 
 /* 배너 */
 .banner{border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-size:13px;border:1.5px solid;display:none}
@@ -208,24 +208,26 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .sr-info{font-size:12px;color:var(--tx3);font-family:var(--mono)}
 
 /* 테이블 그리드 */
-.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.tcard{background:var(--bg2);border:1.5px solid var(--bd);border-radius:var(--rl);padding:12px}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.tcard{background:var(--bg2);border:1.5px solid var(--bd);border-radius:var(--rl);padding:16px}
 .tcard.t-d{border-color:var(--red-d);background:var(--red-bg)}
 .tcard.t-w{border-color:var(--amber-d);background:var(--amber-bg)}
-.tcard-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.tcard-num{font-size:14px;font-weight:700;font-family:var(--mono);cursor:pointer}
-.tcard-badges{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
-.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
-.seat{border:1.5px solid var(--bd);border-radius:7px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;background:var(--bg3);position:relative;overflow:hidden;transition:all .12s}
-.seat .sn{font-size:10px;color:var(--tx3);font-family:var(--mono)}
+.tcard-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tcard-num{font-size:18px;font-weight:700;font-family:var(--mono);cursor:pointer;color:var(--tx)}
+.tcard-num:hover{color:var(--blue)}
+.tcard-badges{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seat{border:1.5px solid var(--bd);border-radius:10px;height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 4px;background:var(--bg3);position:relative;overflow:hidden;transition:all .12s}
+.seat .sn{font-size:11px;color:var(--tx3);font-family:var(--mono);font-weight:600}
 .seat.tk{background:var(--bg2);border-color:var(--bd2)}
-.seat.tk .nm{font-size:11px;font-weight:600;text-align:center;word-break:break-all;line-height:1.2;max-width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.seat.tk .nm{font-size:12px;font-weight:700;text-align:center;word-break:break-all;line-height:1.25;max-width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:var(--tx)}
 .seat.mv{background:var(--green-bg);border-color:var(--green-d);animation:blink 1.3s ease-in-out infinite}
 .seat.dp{background:var(--blue-bg);border-color:var(--blue);cursor:pointer}
-.seat.dp .dh{font-size:10px;color:var(--blue)}
+.seat.dp:active{opacity:.7}
+.seat.dp .dh{font-size:11px;color:var(--blue);font-weight:600}
 .seat.locked{opacity:.2;border-style:dashed}
-.sa{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;justify-content:center}
-.mpip{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--green)}
+.sa{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;justify-content:center}
+.mpip{position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--green)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
 
 /* 참가자 목록 */
@@ -315,7 +317,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 @media(max-width:768px){
   .sidebar{display:none}
   .bottom-nav{display:block}
-  .content{padding:14px}
+  .content{padding:12px}
   .topbar{padding:12px 14px}
   .tb-title{font-size:15px}
   .fr2,.fr3{grid-template-columns:1fr}
@@ -323,10 +325,16 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   .tgrid{grid-template-columns:1fr}
   .rc-canvas{grid-template-columns:1fr}
   .rc-preview{width:100%}
+  .seat{height:72px}
+  .btn-xs{padding:6px 10px;font-size:12px}
 }
 @media(min-width:769px){
   .modal-bg{align-items:center;padding:16px}
   .modal{border-radius:var(--rl);max-width:500px}
+  .tgrid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+}
+@media(min-width:1200px){
+  .tgrid{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
 }
 
 .divider{height:1px;background:var(--bd);margin:14px 0}
@@ -969,12 +977,12 @@ function renderBal(){
       const isOver=s>max;
       const isBlocked=blocked.includes(s);
       if(p){const isM=movingP&&movingP.id===p.id;return`<div class="seat tk${isM?' mv':''}">${p.moved?'<div class="mpip"></div>':''}<div class="sn">${s}</div><div class="nm">${p.name}</div>${!isM?`<div class="sa"><button class="btn btn-d btn-xs" onclick="bust(${p.id})">버스트</button><button class="btn btn-s btn-xs" onclick="startMove(${p.id})">이동</button></div>`:''}</div>`;}
-      if(isOver)return`<div class="seat locked"><div class="sn" style="font-size:9px">-</div></div>`;
-      if(isBlocked)return`<div class="seat" style="background:var(--red-bg);border-color:var(--red-d);opacity:.6"><div class="sn" style="color:var(--red)">${s}</div><div style="font-size:9px;color:var(--red)">차단</div></div>`;
-      if(movingP&&movingP.eventId===balEv)return`<div class="seat dp" onclick="doMove(${t},${s})"><div class="sn">${s}</div><div class="dh">여기로</div></div>`;
-      return`<div class="seat"><div class="sn">${s}</div></div>`;
+      if(isOver)return`<div class="seat locked"><div class="sn">-</div></div>`;
+      if(isBlocked)return`<div class="seat" style="background:var(--red-bg);border-color:var(--red-d);opacity:.7"><div class="sn" style="color:var(--red);font-size:12px;font-weight:700">${s}</div><div style="font-size:10px;color:var(--red)">차단</div></div>`;
+      if(movingP&&movingP.eventId===balEv)return`<div class="seat dp" onclick="doMove(${t},${s})"><div class="sn" style="font-size:13px;font-weight:700;color:var(--blue)">${s}</div><div class="dh">▶ 여기로</div></div>`;
+      return`<div class="seat"><div class="sn" style="font-size:13px;font-weight:600;color:var(--tx2)">${s}</div></div>`;
     }).join('');
-    return`<div class="${cls}"><div class="tcard-h"><div class="tcard-t" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${t}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy" style="font-size:10px">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd" style="font-size:10px">차단 ${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
+    return`<div class="${cls}"><div class="tcard-h"><div class="tcard-num" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${String(t).padStart(2,'0')}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd">🚫${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
   }).join('');
 }
 
