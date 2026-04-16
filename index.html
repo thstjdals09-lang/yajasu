@@ -475,7 +475,11 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <!-- 참가자 -->
 <div class="view" id="v-list">
   <div class="topbar"><div class="tb-title">참가자 목록</div></div>
-  <div class="content" id="listWrap"></div>
+  <div class="content">
+    <div class="stitle">이벤트 선택</div>
+    <div class="epills" id="listPills"></div>
+    <div id="listWrap"></div>
+  </div>
 </div>
 
 <!-- 영수증 디자인 -->
@@ -580,7 +584,7 @@ let nxId=1;
 let regClosed={};
 let regClosedAt={};
 let blockedSeats={};  // {eventId: [1,9]} — 이벤트별 차단 좌석번호 목록 (모든 테이블에 공통 적용)
-let selEv=null,balEv=null,movingP=null;
+let selEv=null,balEv=null,listEv=null,movingP=null;
 let cmbSel=[],cmbEvId=null,lastMoveItems=[];
 
 let RC={
@@ -650,9 +654,9 @@ function load(){
 
 window._loadFirebaseData=function(data){
   applyData(data);
-  regPills();balPills();refreshSrc();updateStats();updateRegUI();
+  regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
   const active=document.querySelector('.view.on');
-  if(active){const id=active.id;if(id==='v-bal')renderBal();if(id==='v-list')renderList();}
+  if(active){const id=active.id;if(id==='v-bal')renderBal();if(id==='v-list'){listPills();renderList();}}
 };
 
 window._appReady=false;
@@ -755,7 +759,7 @@ function go(name,btn){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('v-'+name).classList.add('on');
   if(name==='bal')renderBal();
-  if(name==='list')renderList();
+  if(name==='list'){listPills();renderList();}
   if(name==='rc'){buildTb('entry');buildTb('move');updatePrev();}
   if(name==='cfg'){renderEvList();renderSrcMgmt();}
   updateStats();
@@ -788,6 +792,7 @@ function pills(cid,cur,fn,showT){
 }
 function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();},true);}
 function balPills(){pills('balPills',balEv,id=>{balEv=id;cancelMove();renderBal();updateStats();},true);}
+function listPills(){pills('listPills',listEv,id=>{listEv=id;listPills();renderList();},true);}
 function refreshSrc(){const el=document.getElementById('srcIn');if(!el)return;el.innerHTML=sources.map(s=>`<option>${s}</option>`).join('');}
 
 function getMax(eid){return(evs.find(e=>e.id===eid)||{}).maxSeat||MAX;}
@@ -1042,7 +1047,9 @@ function doCombine(){
 function renderList(){
   const el=document.getElementById('listWrap');
   if(!ps.length){el.innerHTML='<div class="empty">등록된 참가자 없음</div>';return;}
-  const byEv={};ps.forEach(p=>{if(!byEv[p.eventId])byEv[p.eventId]={name:p.evName,id:p.eventId,list:[]};byEv[p.eventId].list.push(p);});
+  const filtered=listEv?ps.filter(p=>p.eventId===listEv):ps;
+  if(!filtered.length){el.innerHTML='<div class="empty">해당 이벤트의 참가자가 없습니다</div>';return;}
+  const byEv={};filtered.forEach(p=>{if(!byEv[p.eventId])byEv[p.eventId]={name:p.evName,id:p.eventId,list:[]};byEv[p.eventId].list.push(p);});
   el.innerHTML=Object.values(byEv).map(ev=>{
     const tot=ev.list.length,act=ev.list.filter(p=>!p.busted).length;
     const reentries=ev.list.filter(p=>p.reentry).length;
@@ -1257,7 +1264,7 @@ function delSrc(i){sources.splice(i,1);save();renderSrcMgmt();refreshSrc();}
 function resetAll(){if(!confirm('모든 참가자 데이터를 초기화할까요?'))return;ps=[];nxId=1;movingP=null;regClosed={};regClosedAt={};save();updateRegUI();updateStats();renderBal();renderList();}
 
 load();
-regPills();balPills();refreshSrc();updateStats();updateRegUI();
+regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
 window._appReady=true;
 if(window._pendingFbData){
   window._loadFirebaseData(window._pendingFbData);
