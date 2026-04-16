@@ -497,10 +497,10 @@ const MAX=9;
 const SAVE_KEY='holdem_mgr_v1';
 
 let evs=[
-  {id:1,name:'GTD',startT:1,msg:'',maxSeat:9,tables:[],open:false},
-  {id:2,name:'미들스택',startT:5,msg:'',maxSeat:9,tables:[],open:false},
-  {id:3,name:'FCS',startT:10,msg:'',maxSeat:9,tables:[],open:false},
-  {id:4,name:'하이롤러',startT:20,msg:'',maxSeat:9,tables:[],open:false}
+  {id:1,name:'GTD',startT:1,msg:'',maxSeat:9,tables:[],reentryAllowed:true,reentryMax:0,open:false},
+  {id:2,name:'미들스택',startT:5,msg:'',maxSeat:9,tables:[],reentryAllowed:true,reentryMax:0,open:false},
+  {id:3,name:'FCS',startT:10,msg:'',maxSeat:9,tables:[],reentryAllowed:true,reentryMax:0,open:false},
+  {id:4,name:'하이롤러',startT:20,msg:'',maxSeat:9,tables:[],reentryAllowed:true,reentryMax:0,open:false}
 ];
 let nxEv=5;
 let sources=['현장구매','온라인','이벤트권','프로모션','초대권'];
@@ -508,6 +508,7 @@ let ps=[];
 let nxId=1;
 let regClosed={};
 let regClosedAt={};
+let blockedSeats={};
 let selEv=null,balEv=null,movingP=null;
 let cmbSel=[],cmbEvId=null,lastMoveItems=[];
 
@@ -540,17 +541,18 @@ let RC={
 let saveTimer=null;
 
 function buildSaveData(){
-  return{evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,RC};
+  return{evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,blockedSeats,RC};
 }
 
 function applyData(data){
-  if(data.evs)evs=data.evs;
+  if(data.evs)evs=data.evs.map(e=>({reentryAllowed:true,reentryMax:0,...e}));
   if(data.nxEv)nxEv=data.nxEv;
   if(data.sources)sources=data.sources;
   if(data.ps)ps=data.ps.map(p=>({...p,time:new Date(p.time)}));
   if(data.nxId)nxId=data.nxId;
   if(data.regClosed!==undefined)regClosed=data.regClosed||{};
   if(data.regClosedAt)regClosedAt=data.regClosedAt||{};
+  if(data.blockedSeats)blockedSeats=data.blockedSeats||{};
   if(data.RC)RC={entry:{...RC.entry,...(data.RC.entry||{})},move:{...RC.move,...(data.RC.move||{})}};
 }
 
@@ -719,6 +721,19 @@ function getTables(eid){
   if(ev&&ev.tables&&ev.tables.length>0)return [...ev.tables].sort((a,b)=>a-b);
   return null;
 }
+function getBlockedSeats(eid,table){
+  return(blockedSeats[eid]&&blockedSeats[eid][table])||[];
+}
+function toggleBlockedSeat(eid,table,seat){
+  if(!blockedSeats[eid])blockedSeats[eid]={};
+  if(!blockedSeats[eid][table])blockedSeats[eid][table]=[];
+  const arr=blockedSeats[eid][table];
+  const idx=arr.indexOf(seat);
+  if(idx>=0)arr.splice(idx,1);else arr.push(seat);
+  save();renderBal();
+}
+
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 
 function assignSeat(eid){
   const ev=evs.find(e=>e.id===eid),max=getMax(eid);
@@ -726,22 +741,41 @@ function assignSeat(eid){
   ep.forEach(p=>{tm[p.table]=(tm[p.table]||0)+1;});
   const usedTables=Object.keys(tm).map(Number).sort((a,b)=>a-b);
   const allowedTables=getTables(eid);
+  const tablesToCheck=allowedTables||usedTables;
+
+  for(const t of tablesToCheck){
+    const cnt=tm[t]||0;
+    const blocked=getBlockedSeats(eid,t);
+    const taken=ep.filter(p=>p.table===t).map(p=>p.seat);
+    const available=[];
+    for(let s=1;s<=max;s++){
+      if(!taken.includes(s)&&!blocked.includes(s))available.push(s);
+    }
+    if(available.length>0){
+      const seat=available[Math.floor(Math.random()*available.length)];
+      return{table:t,seat};
+    }
+  }
 
   if(allowedTables){
-    for(const t of allowedTables){
-      const cnt=tm[t]||0;
-      if(cnt<max){
-        const taken=ep.filter(p=>p.table===t).map(p=>p.seat);
-        for(let s=1;s<=max;s++)if(!taken.includes(s))return{table:t,seat:s};
-      }
-    }
     const nextT=allowedTables.find(t=>!usedTables.includes(t));
-    return{table:nextT||allowedTables[0],seat:1};
+    if(nextT){
+      const blocked=getBlockedSeats(eid,nextT);
+      const available=[];
+      for(let s=1;s<=max;s++)if(!blocked.includes(s))available.push(s);
+      const seat=available.length?available[Math.floor(Math.random()*available.length)]:1;
+      return{table:nextT,seat};
+    }
+    return{table:allowedTables[0],seat:1};
   }
 
   const st=ev?ev.startT:1;
-  for(const t of usedTables){if(tm[t]<max){const taken=ep.filter(p=>p.table===t).map(p=>p.seat);for(let s=1;s<=max;s++)if(!taken.includes(s))return{table:t,seat:s};}}
-  return{table:usedTables.length?Math.max(...usedTables)+1:st,seat:1};
+  const nextT=usedTables.length?Math.max(...usedTables)+1:st;
+  const blocked=getBlockedSeats(eid,nextT);
+  const available=[];
+  for(let s=1;s<=max;s++)if(!blocked.includes(s))available.push(s);
+  const seat=available.length?available[Math.floor(Math.random()*available.length)]:1;
+  return{table:nextT,seat};
 }
 
 function doReg(){
@@ -762,15 +796,27 @@ function doReg(){
   save();updateStats();showRegRc(p);
 }
 
-/* 리바이/리엔트리 */
+/* 등록 취소 */
+function cancelReg(pid){
+  const p=ps.find(x=>x.id===pid);if(!p)return;
+  if(!confirm(`"${p.name}" (${p.num}번) 등록을 취소할까요?`))return;
+  ps=ps.filter(x=>x.id!==pid);
+  save();updateStats();renderList();renderBal();
+}
+
+/* 리엔트리 */
 function doReentry(pid){
   const orig=ps.find(x=>x.id===pid);if(!orig)return;
   if(!orig.busted){alert('버스트된 참가자만 리엔트리 가능합니다.');return;}
-  if(!confirm(`"${orig.name}" 리엔트리 처리할까요? 새 번호로 등록됩니다.`))return;
   const ev=evs.find(e=>e.id===orig.eventId);
+  if(!ev||!ev.reentryAllowed){alert('이 이벤트는 리엔트리가 허용되지 않습니다.');return;}
+  const origName=orig.reentryOrigName||orig.name;
+  const reentryCount=ps.filter(p=>p.eventId===orig.eventId&&(p.reentryOrigName===origName)&&p.reentry).length;
+  if(ev.reentryMax>0&&reentryCount>=ev.reentryMax){alert(`리엔트리 횟수(${ev.reentryMax}회)를 초과했습니다.`);return;}
+  if(!confirm(`"${orig.name}" ${reentryCount+1}번째 리엔트리 처리할까요?`))return;
   const num=ps.filter(p=>p.eventId===orig.eventId).length+1;
   const{table,seat}=assignSeat(orig.eventId);
-  const p={id:nxId++,name:orig.name,nick:orig.nick,src:orig.src,eventId:orig.eventId,evName:orig.evName,num,table,seat,busted:false,moved:false,prevTable:null,time:new Date(),reentry:true,reentryFrom:orig.num};
+  const p={id:nxId++,name:orig.name,nick:orig.nick,src:orig.src,eventId:orig.eventId,evName:orig.evName,num,table,seat,busted:false,moved:false,prevTable:null,time:new Date(),reentry:true,reentryCount:reentryCount+1,reentryOrigName:origName};
   ps.push(p);
   save();updateStats();renderList();showRegRc(p);
 }
@@ -831,17 +877,20 @@ function renderBal(){
     const isBig=cnt===mx&&diff>2&&ts.size>1,isSml=cnt===mn&&diff>2&&ts.size>1;
     const cls='tcard'+(isBig?' t-d':isSml?' t-w':'');
     const lbl=isBig?'<span class="badge b-rd" style="font-size:10px">많음</span>':isSml?'<span class="badge b-am" style="font-size:10px">적음</span>':'';
-    const empty=max-cnt;
+    const blocked=getBlockedSeats(balEv,t);
+    const empty=max-cnt-blocked.filter(s=>s<=max).length;
     const emptyBadge=empty>0?`<span class="badge b-gy" style="font-size:10px">빈자리 ${empty}</span>`:'';
     const seats=Array.from({length:MAX},(_,i)=>i+1).map(s=>{
       const p=tap.find(x=>x.seat===s);
       const isOver=s>max;
+      const isBlocked=blocked.includes(s);
       if(p){const isM=movingP&&movingP.id===p.id;return`<div class="seat tk${isM?' mv':''}">${p.moved?'<div class="mpip"></div>':''}<div class="sn">${s}</div><div class="nm">${p.name}</div>${!isM?`<div class="sa"><button class="btn btn-d btn-xs" onclick="bust(${p.id})">버스트</button><button class="btn btn-s btn-xs" onclick="startMove(${p.id})">이동</button></div>`:''}</div>`;}
       if(isOver)return`<div class="seat locked"><div class="sn" style="font-size:9px">-</div></div>`;
+      if(isBlocked)return`<div class="seat" style="background:var(--red-bg);border-color:var(--red-d);cursor:pointer;opacity:.7" onclick="toggleBlockedSeat(${balEv},${t},${s})" title="${s}번 좌석 차단 해제"><div class="sn" style="color:var(--red)">${s}</div><div style="font-size:9px;color:var(--red)">차단</div></div>`;
       if(movingP&&movingP.eventId===balEv)return`<div class="seat dp" onclick="doMove(${t},${s})"><div class="sn">${s}</div><div class="dh">여기로</div></div>`;
-      return`<div class="seat"><div class="sn">${s}</div></div>`;
+      return`<div class="seat" style="cursor:pointer" onclick="toggleBlockedSeat(${balEv},${t},${s})" title="${s}번 좌석 차단"><div class="sn">${s}</div></div>`;
     }).join('');
-    return`<div class="${cls}"><div class="tcard-h"><div class="tcard-t" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${t}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy" style="font-size:10px">${cnt}/${max}</span></div></div><div class="sgrid">${seats}</div></div>`;
+    return`<div class="${cls}"><div class="tcard-h"><div class="tcard-t" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${t}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy" style="font-size:10px">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd" style="font-size:10px">차단 ${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
   }).join('');
 }
 
@@ -918,15 +967,22 @@ function renderList(){
   el.innerHTML=Object.values(byEv).map(ev=>{
     const tot=ev.list.length,act=ev.list.filter(p=>!p.busted).length;
     const reentries=ev.list.filter(p=>p.reentry).length;
-    return`<div class="psec"><div class="psec-h"><div class="pt">${ev.name} — 전체 ${tot}명 · 플레이 ${act}명${reentries?` · 리엔트리 ${reentries}명`:''}</div><button class="btn btn-g btn-xs" onclick="downloadXlsx(${ev.id})">엑셀 다운로드</button></div>`+
-      ev.list.map(p=>`<div class="prow${p.busted?' po':''}${p.reentry?' reentry':''}">
-        <div class="pcirc">${p.num}</div>
-        <div class="pn">${p.name}${p.nick?` <span class="pnk">(${p.nick})</span>`:''}${p.reentry?` <span class="badge b-pu" style="font-size:10px">리엔트리</span>`:''}</div>
-        ${p.busted
-          ?`<div style="display:flex;gap:6px;align-items:center"><span class="badge b-rd">버스트</span><button class="btn btn-pu btn-xs" onclick="doReentry(${p.id})">리엔트리</button></div>`
-          :`<span class="badge${p.moved?' b-gr':' b-gy'}">${p.moved?'이동됨 · ':''}T${p.table}—${p.seat}번</span>`}
-        <button class="btn btn-g btn-xs" onclick="showRegRc(ps.find(x=>x.id===${p.id}))">재출력</button>
-      </div>`).join('')+`</div>`;
+    const evCfg=evs.find(e=>e.id===ev.id);
+    const reentryInfo=evCfg?.reentryAllowed?(evCfg.reentryMax>0?` · 리엔트리 ${reentries}회 (최대 ${evCfg.reentryMax}회)`:(reentries?` · 리엔트리 ${reentries}회`:'')):'';
+    return`<div class="psec"><div class="psec-h"><div class="pt">${ev.name} — 전체 ${tot}명 · 플레이 ${act}명${reentryInfo}</div><button class="btn btn-g btn-xs" onclick="downloadXlsx(${ev.id})">엑셀 다운로드</button></div>`+
+      ev.list.map(p=>{
+        const reentryBadge=p.reentry?`<span class="badge b-pu" style="font-size:10px">${p.reentryCount||1}차 RE</span>`:'';
+        const statusBadge=p.busted
+          ?`<div style="display:flex;gap:5px;align-items:center"><span class="badge b-rd">버스트</span>${evCfg?.reentryAllowed?`<button class="btn btn-pu btn-xs" onclick="doReentry(${p.id})">리엔트리</button>`:''}</div>`
+          :`<span class="badge${p.moved?' b-gr':' b-gy'}">${p.moved?'이동됨 · ':''}T${p.table}—${p.seat}번</span>`;
+        return`<div class="prow${p.busted?' po':''}${p.reentry?' reentry':''}">
+          <div class="pcirc">${p.num}</div>
+          <div class="pn">${p.name}${p.nick?` <span class="pnk">(${p.nick})</span>`:''}${reentryBadge}</div>
+          ${statusBadge}
+          <button class="btn btn-g btn-xs" onclick="showRegRc(ps.find(x=>x.id===${p.id}))">재출력</button>
+          ${!p.busted?`<button class="btn btn-d btn-xs" onclick="cancelReg(${p.id})">취소</button>`:''}
+        </div>`;
+      }).join('')+`</div>`;
   }).join('');
 }
 
@@ -1098,6 +1154,17 @@ function renderEvList(){
       <div class="fr fr2" style="margin-bottom:10px">
         <div class="fg"><label>테이블 최대 인원 (1~9)</label><input type="number" min="1" max="9" value="${e.maxSeat||9}" oninput="evs.find(x=>x.id===${e.id}).maxSeat=Math.min(9,Math.max(1,parseInt(this.value)||9));save();renderEvList()"></div>
         <div class="fg"><label>영수증 전용 문구</label><input type="text" value="${e.msg||''}" placeholder="예: 바이인 ₩100,000" oninput="evs.find(x=>x.id===${e.id}).msg=this.value;save()"></div>
+      </div>
+      <div class="fr fr2" style="margin-bottom:10px">
+        <div class="fg"><label>리엔트리 허용</label>
+          <select onchange="evs.find(x=>x.id===${e.id}).reentryAllowed=this.value==='true';save();renderEvList()">
+            <option value="true" ${e.reentryAllowed!==false?'selected':''}>허용</option>
+            <option value="false" ${e.reentryAllowed===false?'selected':''}>불가</option>
+          </select>
+        </div>
+        <div class="fg"><label>최대 리엔트리 횟수 (0=무제한)</label>
+          <input type="number" min="0" value="${e.reentryMax||0}" ${e.reentryAllowed===false?'disabled':''} oninput="evs.find(x=>x.id===${e.id}).reentryMax=parseInt(this.value)||0;save()">
+        </div>
       </div>
       <div class="fg" style="margin-bottom:8px">
         <label>사용할 테이블 번호 <span style="color:var(--tx3);font-weight:400">(예: 1, 3, 5-10, 15 — 비워두면 순차 배정)</span></label>
