@@ -370,6 +370,7 @@ input[type=color]{padding:2px;height:34px;border-radius:var(--r)}
       </div>
       <div class="err" id="regErr"></div>
     </div>
+    <div id="seatBlockWrap" style="margin-top:18px;max-width:900px"></div>
   </div>
   <div class="rc-ov" id="regOv">
     <div class="rc-sheets" id="regSheets"></div>
@@ -706,76 +707,70 @@ function pills(cid,cur,fn,showT){
   const el=document.getElementById(cid);if(!el)return;el.innerHTML='';
   evs.forEach(e=>{
     const d=document.createElement('div');d.className='ep'+(cur===e.id?' on':'');
-    const tInfo=e.tables&&e.tables.length?`<span class="sub">${e.tables.length}테이블</span>`:`<span class="sub">T${e.startT}〜</span>`;
-    d.innerHTML=e.name+(showT?tInfo:'');
+    const excl=e.excludedTables&&e.excludedTables.length?` (-${e.excludedTables.length})`: '';
+    d.innerHTML=e.name+(showT?`<span class="sub">T${e.startT}〜${excl}</span>`:'');
     d.onclick=()=>fn(e.id);el.appendChild(d);
   });
 }
-function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();},true);}
+function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();},true);}
 function balPills(){pills('balPills',balEv,id=>{balEv=id;cancelMove();renderBal();updateStats();},true);}
 function refreshSrc(){const el=document.getElementById('srcIn');if(!el)return;el.innerHTML=sources.map(s=>`<option>${s}</option>`).join('');}
 
 function getMax(eid){return(evs.find(e=>e.id===eid)||{}).maxSeat||MAX;}
-function getTables(eid){
-  const ev=evs.find(e=>e.id===eid);
-  if(ev&&ev.tables&&ev.tables.length>0)return [...ev.tables].sort((a,b)=>a-b);
-  return null;
-}
-function getBlockedSeats(eid,table){
-  return(blockedSeats[eid]&&blockedSeats[eid][table])||[];
-}
+function isTableExcluded(eid,t){const ev=evs.find(e=>e.id===eid);return ev&&ev.excludedTables&&ev.excludedTables.includes(t);}
+function getBlockedSeats(eid,table){return(blockedSeats[eid]&&blockedSeats[eid][table])||[];}
 function toggleBlockedSeat(eid,table,seat){
   if(!blockedSeats[eid])blockedSeats[eid]={};
   if(!blockedSeats[eid][table])blockedSeats[eid][table]=[];
   const arr=blockedSeats[eid][table];
   const idx=arr.indexOf(seat);
-  if(idx>=0)arr.splice(idx,1);else arr.push(seat);
-  save();renderBal();
+  idx>=0?arr.splice(idx,1):arr.push(seat);
+  save();renderSeatBlock();renderBal();
 }
 
-function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
-
 function assignSeat(eid){
-  const ev=evs.find(e=>e.id===eid),max=getMax(eid);
+  const ev=evs.find(e=>e.id===eid),max=getMax(eid),st=ev?ev.startT:1;
   const ep=ps.filter(p=>p.eventId===eid&&!p.busted),tm={};
   ep.forEach(p=>{tm[p.table]=(tm[p.table]||0)+1;});
   const usedTables=Object.keys(tm).map(Number).sort((a,b)=>a-b);
-  const allowedTables=getTables(eid);
-  const tablesToCheck=allowedTables||usedTables;
-
-  for(const t of tablesToCheck){
-    const cnt=tm[t]||0;
-    const blocked=getBlockedSeats(eid,t);
-    const taken=ep.filter(p=>p.table===t).map(p=>p.seat);
-    const available=[];
-    for(let s=1;s<=max;s++){
-      if(!taken.includes(s)&&!blocked.includes(s))available.push(s);
-    }
-    if(available.length>0){
-      const seat=available[Math.floor(Math.random()*available.length)];
-      return{table:t,seat};
-    }
+  for(const t of usedTables){
+    if(isTableExcluded(eid,t))continue;
+    const blocked=getBlockedSeats(eid,t),taken=ep.filter(p=>p.table===t).map(p=>p.seat),avail=[];
+    for(let s=1;s<=max;s++)if(!taken.includes(s)&&!blocked.includes(s))avail.push(s);
+    if(avail.length)return{table:t,seat:avail[Math.floor(Math.random()*avail.length)]};
   }
+  let nextT=st;
+  const used=new Set(usedTables);
+  while(isTableExcluded(eid,nextT)||used.has(nextT))nextT++;
+  const blocked=getBlockedSeats(eid,nextT),avail=[];
+  for(let s=1;s<=max;s++)if(!blocked.includes(s))avail.push(s);
+  return{table:nextT,seat:avail.length?avail[Math.floor(Math.random()*avail.length)]:1};
+}
 
-  if(allowedTables){
-    const nextT=allowedTables.find(t=>!usedTables.includes(t));
-    if(nextT){
-      const blocked=getBlockedSeats(eid,nextT);
-      const available=[];
-      for(let s=1;s<=max;s++)if(!blocked.includes(s))available.push(s);
-      const seat=available.length?available[Math.floor(Math.random()*available.length)]:1;
-      return{table:nextT,seat};
-    }
-    return{table:allowedTables[0],seat:1};
-  }
-
-  const st=ev?ev.startT:1;
-  const nextT=usedTables.length?Math.max(...usedTables)+1:st;
-  const blocked=getBlockedSeats(eid,nextT);
-  const available=[];
-  for(let s=1;s<=max;s++)if(!blocked.includes(s))available.push(s);
-  const seat=available.length?available[Math.floor(Math.random()*available.length)]:1;
-  return{table:nextT,seat};
+function renderSeatBlock(){
+  const el=document.getElementById('seatBlockWrap');if(!el)return;
+  if(!selEv){el.innerHTML='';return;}
+  const ev=evs.find(e=>e.id===selEv);if(!ev)return;
+  const max=getMax(selEv);
+  const ap=ps.filter(p=>p.eventId===selEv&&!p.busted);
+  const tables=[...new Set(ap.map(p=>p.table))].sort((a,b)=>a-b);
+  if(!tables.length){el.innerHTML=`<div style="font-size:13px;color:var(--tx3);padding:8px 0">등록된 참가자가 없습니다. 참가자 등록 후 좌석 차단을 설정할 수 있습니다.</div>`;return;}
+  el.innerHTML=`<div class="stitle">테이블별 좌석 차단 설정 <span style="font-weight:400;color:var(--tx3);font-size:11px;text-transform:none">빈 좌석 클릭 시 차단/해제</span></div>
+  <div class="tgrid">${tables.map(t=>{
+    const tap=ap.filter(p=>p.table===t);
+    const blocked=getBlockedSeats(selEv,t);
+    const seats=Array.from({length:MAX},(_,i)=>i+1).map(s=>{
+      const p=tap.find(x=>x.seat===s);
+      const isOver=s>max;
+      const isBlocked=blocked.includes(s);
+      if(p)return`<div class="seat tk"><div class="sn">${s}</div><div class="nm">${p.name}</div></div>`;
+      if(isOver)return`<div class="seat locked"><div class="sn" style="font-size:9px">-</div></div>`;
+      if(isBlocked)return`<div class="seat" style="background:var(--red-bg);border-color:var(--red-d);cursor:pointer" onclick="toggleBlockedSeat(${selEv},${t},${s})"><div class="sn" style="color:var(--red)">${s}</div><div style="font-size:9px;color:var(--red)">차단</div></div>`;
+      return`<div class="seat" style="cursor:pointer" onclick="toggleBlockedSeat(${selEv},${t},${s})" title="클릭하여 차단"><div class="sn">${s}</div></div>`;
+    }).join('');
+    const bcnt=blocked.filter(s=>s<=max).length;
+    return`<div class="tcard"><div class="tcard-h"><div class="tcard-t">T${t}</div><div style="display:flex;gap:5px">${bcnt?`<span class="badge b-rd" style="font-size:10px">차단 ${bcnt}</span>`:''}<span class="badge b-gy" style="font-size:10px">${tap.length}/${max}</span></div></div><div class="sgrid">${seats}</div></div>`;
+  }).join('')}</div>`;
 }
 
 function doReg(){
@@ -886,9 +881,9 @@ function renderBal(){
       const isBlocked=blocked.includes(s);
       if(p){const isM=movingP&&movingP.id===p.id;return`<div class="seat tk${isM?' mv':''}">${p.moved?'<div class="mpip"></div>':''}<div class="sn">${s}</div><div class="nm">${p.name}</div>${!isM?`<div class="sa"><button class="btn btn-d btn-xs" onclick="bust(${p.id})">버스트</button><button class="btn btn-s btn-xs" onclick="startMove(${p.id})">이동</button></div>`:''}</div>`;}
       if(isOver)return`<div class="seat locked"><div class="sn" style="font-size:9px">-</div></div>`;
-      if(isBlocked)return`<div class="seat" style="background:var(--red-bg);border-color:var(--red-d);cursor:pointer;opacity:.7" onclick="toggleBlockedSeat(${balEv},${t},${s})" title="${s}번 좌석 차단 해제"><div class="sn" style="color:var(--red)">${s}</div><div style="font-size:9px;color:var(--red)">차단</div></div>`;
+      if(isBlocked)return`<div class="seat" style="background:var(--red-bg);border-color:var(--red-d);opacity:.6"><div class="sn" style="color:var(--red)">${s}</div><div style="font-size:9px;color:var(--red)">차단</div></div>`;
       if(movingP&&movingP.eventId===balEv)return`<div class="seat dp" onclick="doMove(${t},${s})"><div class="sn">${s}</div><div class="dh">여기로</div></div>`;
-      return`<div class="seat" style="cursor:pointer" onclick="toggleBlockedSeat(${balEv},${t},${s})" title="${s}번 좌석 차단"><div class="sn">${s}</div></div>`;
+      return`<div class="seat"><div class="sn">${s}</div></div>`;
     }).join('');
     return`<div class="${cls}"><div class="tcard-h"><div class="tcard-t" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${t}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy" style="font-size:10px">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd" style="font-size:10px">차단 ${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
   }).join('');
@@ -1166,13 +1161,13 @@ function renderEvList(){
           <input type="number" min="0" value="${e.reentryMax||0}" ${e.reentryAllowed===false?'disabled':''} oninput="evs.find(x=>x.id===${e.id}).reentryMax=parseInt(this.value)||0;save()">
         </div>
       </div>
-      <div class="fg" style="margin-bottom:8px">
-        <label>사용할 테이블 번호 <span style="color:var(--tx3);font-weight:400">(예: 1, 3, 5-10, 15 — 비워두면 순차 배정)</span></label>
-        <input type="text" value="${tStr}" placeholder="예: 1-5, 7, 10-20" 
-          oninput="(function(v){const ev=evs.find(x=>x.id===${e.id});ev.tables=v.trim()?parseTableInput(v):[];save();renderEvList();regPills();balPills();})(this.value)">
-        ${hasTables?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${e.tables.slice(0,20).map(t=>`<span style="font-size:11px;padding:2px 7px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-d);border-radius:20px">T${t}</span>`).join('')}${e.tables.length>20?`<span style="font-size:11px;color:var(--tx3)">+${e.tables.length-20}개 더</span>`:''}</div>`:''}
+      <div class="fr fr2" style="margin-bottom:10px">
+        <div class="fg"><label>시작 테이블 번호</label><input type="number" min="1" value="${e.startT||1}" oninput="evs.find(x=>x.id===${e.id}).startT=parseInt(this.value)||1;save();renderEvList();regPills()"></div>
+        <div class="fg"><label>사용 안 할 테이블 번호 <span style="font-weight:400;color:var(--tx3)">(예: 6, 13, 20-22)</span></label>
+          <input type="text" value="${tableListToStr(e.excludedTables||[])}" placeholder="예: 6, 13, 20-22"
+            oninput="(function(v){const ev=evs.find(x=>x.id===${e.id});ev.excludedTables=v.trim()?parseTableInput(v):[];save();renderEvList();})(this.value)">
+        </div>
       </div>
-      ${!hasTables?`<div class="fg" style="margin-bottom:8px"><label>시작 테이블 번호 (테이블 지정 없을 때)</label><input type="number" min="1" value="${e.startT||1}" oninput="evs.find(x=>x.id===${e.id}).startT=parseInt(this.value)||1;save();renderEvList();regPills()"></div>`:''}
       <div style="display:flex;justify-content:flex-end;margin-top:4px"><button class="btn btn-d btn-xs" onclick="delEv(${e.id})">삭제</button></div>
     </div>`;
   }).join('');
