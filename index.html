@@ -372,10 +372,6 @@ input[type=color]{padding:2px;height:34px;border-radius:var(--r)}
     </div>
     <div id="seatBlockWrap" style="margin-top:18px;max-width:900px"></div>
   </div>
-  <div class="rc-ov" id="regOv">
-    <div class="rc-sheets" id="regSheets"></div>
-    <div class="rc-fb" style="max-width:560px"><button class="rcfb-btn sec" onclick="closeOv('regOv')">닫기</button></div>
-  </div>
 </div>
 
 <!-- 밸런싱 -->
@@ -418,13 +414,6 @@ input[type=color]{padding:2px;height:34px;border-radius:var(--r)}
           <button class="btn btn-g btn-sm" onclick="closeModal('combineModal')">취소</button>
           <button class="btn btn-pu btn-sm" onclick="doCombine()">실행 + 영수증 출력</button>
         </div>
-      </div>
-    </div>
-    <div class="rc-ov" id="balOv">
-      <div class="rc-sheets" id="balSheets"></div>
-      <div class="rc-fb" style="max-width:560px">
-        <button class="rcfb-btn sec" onclick="closeOv('balOv')">닫기</button>
-        <button class="rcfb-btn" onclick="printBalRc()">모두 인쇄</button>
       </div>
     </div>
   </div>
@@ -1105,18 +1094,10 @@ function openWin(pages){
 }
 
 function showRegRc(p){
-  const chipH=buildRcHtml(p,'chip',false),seatH=buildRcHtml(p,'seat',false);
-  document.getElementById('regSheets').innerHTML=`
-    <div class="rcm"><div class="rcm-lbl chip">${RC.entry.chipLabel||'칩 수령용'}</div><div>${chipH}</div></div>
-    <div class="rcm"><div class="rcm-lbl seat">${RC.entry.seatLabel||'좌석 확인용'}</div><div>${seatH}</div></div>`;
-  document.getElementById('regOv').classList.add('on');
-  openWin(`<div class="page">${chipH}</div><div class="page">${seatH}</div>`);
+  openWin(`<div class="page">${buildRcHtml(p,'chip',false)}</div><div class="page">${buildRcHtml(p,'seat',false)}</div>`);
 }
 function showMoveRc(items){
   lastMoveItems=items;
-  const sheets=items.slice(0,6).map(({p,fromTable})=>`<div class="rcm"><div class="rcm-lbl move">${RC.move.label||'이동'} · ${p.name}</div><div>${buildRcHtml(p,'move',true,fromTable)}</div></div>`).join('');
-  document.getElementById('balSheets').innerHTML=sheets+(items.length>6?`<div class="rcm" style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:10px;color:var(--tx3);font-size:13px">+${items.length-6}명 더</div>`:'');
-  document.getElementById('balOv').classList.add('on');
   openWin(items.map(({p,fromTable})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable)}</div>`).join(''));
 }
 function closeOv(id){document.getElementById(id).classList.remove('on');}
