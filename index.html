@@ -6,6 +6,7 @@
 <title>홀덤 토너먼트 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -412,6 +413,10 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <div class="s-user">
       <div class="s-user-email" id="userEmailLabel"></div>
       <button class="logout-btn" id="logoutBtn">로그아웃</button>
+    </div>
+    <div style="padding:8px 18px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:6px">
+      <div id="qzIndicator" style="font-size:10px;color:var(--tx3);flex:1">🖨 QZ 연결 안됨</div>
+      <button onclick="qzConnectManual()" style="font-size:10px;padding:4px 8px;background:var(--bg3);border:1px solid var(--bd2);color:var(--tx2);border-radius:6px;cursor:pointer">연결</button>
     </div>
   </div>
 </div>
@@ -1263,7 +1268,51 @@ function updatePrev(){
   if(pm)pm.innerHTML=buildRcHtml(mock,'move',true,1);
 }
 
-function getPrintCss(){return`*{box-sizing:border-box;margin:0;padding:0}body{margin:0;padding:0;background:#fff}.pages{display:block}.page{width:72mm;min-height:100mm;padding:6mm;border:1px dashed #ccc;margin:2mm;position:relative;overflow:hidden;page-break-after:always;break-after:page}@media print{body{margin:0}.pages{display:block}.page{border:none;margin:0;page-break-after:always;break-after:page}}`;};function openWin(pages){
+function getPrintCss(){return`*{box-sizing:border-box;margin:0;padding:0}body{margin:0;padding:0;background:#fff}.pages{display:block}.page{width:72mm;min-height:100mm;padding:6mm;border:1px dashed #ccc;margin:2mm;position:relative;overflow:hidden;page-break-after:always;break-after:page}@media print{body{margin:0}.pages{display:block}.page{border:none;margin:0;page-break-after:always;break-after:page}}`;}
+
+/* ── QZ Tray 연동 ── */
+let qzConnected=false;
+let qzPrinterName=null;
+
+async function qzConnect(){
+  try{
+    if(typeof qz==='undefined')return false;
+    if(!qz.websocket.isActive())await qz.websocket.connect();
+    qzConnected=true;
+    // 기본 프린터 자동 감지
+    const printer=await qz.printers.getDefault();
+    qzPrinterName=printer;
+    const ind=document.getElementById('qzIndicator');
+    if(ind){ind.textContent='🖨 '+printer;ind.style.color='var(--green)';}
+    console.log('QZ 연결됨:',printer);
+    return true;
+  }catch(e){
+    qzConnected=false;
+    console.log('QZ 연결 안됨, 브라우저 인쇄 사용');
+    return false;
+  }
+}
+
+async function qzPrint(htmlPages){
+  try{
+    if(!qzConnected)await qzConnect();
+    if(!qzConnected||!qzPrinterName)return false;
+    const fullHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${getPrintCss()}</style></head><body><div class="pages">${htmlPages}</div></body></html>`;
+    const cfg=qz.configs.create(qzPrinterName);
+    const data=[{type:'html',format:'plain',data:fullHtml}];
+    await qz.print(cfg,data);
+    return true;
+  }catch(e){
+    console.error('QZ 인쇄 오류:',e);
+    return false;
+  }
+}
+
+async function openWin(pages){
+  // QZ Tray로 먼저 시도, 실패하면 브라우저 인쇄
+  const qzOk=await qzPrint(pages);
+  if(qzOk)return;
+  // 폴백: iframe 인쇄
   let fr=document.getElementById('_printFrame');
   if(!fr){
     fr=document.createElement('iframe');
@@ -1360,6 +1409,13 @@ function addSrc(){const inp=document.getElementById('newSrcName'),n=inp.value.tr
 function delSrc(i){sources.splice(i,1);save();renderSrcMgmt();refreshSrc();}
 function resetAll(){if(!confirm('모든 참가자 데이터를 초기화할까요?'))return;ps=[];nxId=1;movingP=null;regClosed={};regClosedAt={};save();updateRegUI();updateStats();renderBal();renderList();}
 
+async function qzConnectManual(){
+  const ind=document.getElementById('qzIndicator');
+  if(ind){ind.textContent='🖨 연결 중...';ind.style.color='var(--amber)';}
+  const ok=await qzConnect();
+  if(!ok&&ind){ind.textContent='🖨 QZ 연결 안됨';ind.style.color='var(--tx3)';}
+}
+
 load();
 regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
 window._appReady=true;
@@ -1367,6 +1423,8 @@ if(window._pendingFbData){
   window._loadFirebaseData(window._pendingFbData);
   window._pendingFbData=null;
 }
+// QZ Tray 자동 연결 시도
+setTimeout(()=>qzConnect(),1500);
 </script>
 </body>
 </html>
