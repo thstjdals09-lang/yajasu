@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>홀덤 토너먼트 매니저</title>
+<title>손성민의 피땀눈물</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -412,10 +412,6 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <div class="s-user">
       <div class="s-user-email" id="userEmailLabel"></div>
       <button class="logout-btn" id="logoutBtn">로그아웃</button>
-    </div>
-    <div style="padding:8px 18px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:6px">
-      <div id="qzIndicator" style="font-size:10px;color:var(--tx3);flex:1">🖨 QZ 연결 안됨</div>
-      <button onclick="qzConnectManual()" style="font-size:10px;padding:4px 8px;background:var(--bg3);border:1px solid var(--bd2);color:var(--tx2);border-radius:6px;cursor:pointer">연결</button>
     </div>
   </div>
 </div>
@@ -1211,18 +1207,15 @@ function buildTb(mode){
 function togRcSec(head){const body=head.nextElementSibling;const open=body.classList.toggle('on');head.querySelector('span').textContent=open?'▼':'▶';}
 
 function divH(style,color){
-  const c=color||'#111';
-  // hex를 rgba로 변환해서 투명도 적용
-  const toRgba=(hex,a)=>{
-    const h=hex.replace('#','');
-    const r=parseInt(h.length===3?h[0]+h[0]:h.slice(0,2),16);
-    const g=parseInt(h.length===3?h[1]+h[1]:h.slice(2,4),16);
-    const b=parseInt(h.length===3?h[2]+h[2]:h.slice(4,6),16);
-    return `rgba(${r},${g},${b},${a})`;
+  if(style==='none')return'';
+  const c=color||'#111111';
+  const styles={
+    dashed:`border-top:1px dashed ${c};opacity:0.5`,
+    solid:`border-top:1px solid ${c};opacity:0.5`,
+    double:`border-top:3px double ${c};opacity:0.5`
   };
-  const cc=toRgba(c,0.4);
-  const s={dashed:`border-top:1px dashed ${cc}`,solid:`border-top:1px solid ${cc}`,double:`border-top:3px double ${cc}`};
-  return style==='none'?'':`<div style="margin:8px 0;${s[style]||s.dashed}"></div>`;
+  const st=styles[style]||styles.dashed;
+  return`<div style="margin:8px 0;${st}"></div>`;
 }
 
 function buildRcHtml(p,type,isMove,fromTable){
@@ -1282,80 +1275,22 @@ function updatePrev(){
 
 function getPrintCss(){return`*{box-sizing:border-box;margin:0;padding:0}body{margin:0;padding:0;background:#fff}.pages{display:block}.page{width:72mm;min-height:100mm;padding:6mm;border:1px dashed #ccc;margin:2mm;position:relative;overflow:hidden;page-break-after:always;break-after:page}@media print{body{margin:0}.pages{display:block}.page{border:none;margin:0;page-break-after:always;break-after:page}}`;}
 
-/* ── QZ Tray 연동 (WebSocket) ── */
-let qzWs=null,qzConnected=false,qzPrinterName=null,qzCallbacks={},qzMsgId=0;
-
-function qzSend(data){
-  return new Promise((resolve,reject)=>{
-    if(!qzWs||qzWs.readyState!==WebSocket.OPEN){reject(new Error('QZ not connected'));return;}
-    const id='msg_'+(++qzMsgId);
-    data.uid=id;
-    qzCallbacks[id]={resolve,reject};
-    qzWs.send(JSON.stringify(data));
-    setTimeout(()=>{if(qzCallbacks[id]){delete qzCallbacks[id];reject(new Error('timeout'));}},8000);
-  });
-}
-
-function qzConnect(){
-  return new Promise((resolve)=>{
-    const ind=document.getElementById('qzIndicator');
-    try{
-      const url=location.protocol==='https:'?'wss://localhost:8182':'ws://localhost:8181';
-      const ws=new WebSocket(url);
-      ws.onopen=async()=>{
-        qzWs=ws;qzConnected=true;
-        try{
-          const res=await qzSend({call:'printers.getDefault'});
-          qzPrinterName=res.result||res;
-          if(ind){ind.textContent='🖨 '+qzPrinterName;ind.style.color='var(--green)';}
-        }catch(e){
-          if(ind){ind.textContent='🖨 연결됨';ind.style.color='var(--amber)';}
-        }
-        resolve(true);
-      };
-      ws.onmessage=e=>{
-        try{
-          const msg=JSON.parse(e.data);
-          if(msg.uid&&qzCallbacks[msg.uid]){
-            if(msg.error)qzCallbacks[msg.uid].reject(new Error(msg.error));
-            else qzCallbacks[msg.uid].resolve(msg.result||msg);
-            delete qzCallbacks[msg.uid];
-          }
-        }catch(err){}
-      };
-      ws.onerror=()=>{qzConnected=false;if(ind){ind.textContent='🖨 QZ 연결 안됨';ind.style.color='var(--tx3)';}resolve(false);};
-      ws.onclose=()=>{qzConnected=false;qzWs=null;};
-    }catch(e){qzConnected=false;resolve(false);}
-  });
-}
-
-async function qzConnectManual(){
-  const ind=document.getElementById('qzIndicator');
-  if(ind){ind.textContent='🖨 연결 중...';ind.style.color='var(--amber)';}
-  await qzConnect();
-}
-
-async function qzPrint(htmlPages){
-  if(!qzConnected)await qzConnect();
-  if(!qzConnected||!qzPrinterName)return false;
-  try{
-    const fullHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+getPrintCss()+'</style></head><body><div class="pages">'+htmlPages+'</div></body></html>';
-    await qzSend({call:'print',params:{printer:{name:qzPrinterName},data:[{type:'html',format:'plain',data:fullHtml}]}});
-    return true;
-  }catch(e){console.error('QZ print error:',e);return false;}
-}
-
-async function openWin(pages){
-  const qzOk=await qzPrint(pages);
-  if(qzOk)return;
+function openWin(pages){
   let fr=document.getElementById('_printFrame');
-  if(!fr){fr=document.createElement('iframe');fr.id='_printFrame';fr.style.cssText='position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none';document.body.appendChild(fr);}
+  if(!fr){
+    fr=document.createElement('iframe');
+    fr.id='_printFrame';
+    fr.style.cssText='position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none';
+    document.body.appendChild(fr);
+  }
   const doc=fr.contentDocument||fr.contentWindow.document;
   doc.open();
   doc.write('<html><head><title>영수증</title><style>'+getPrintCss()+'</style></head><body><div class="pages">'+pages+'</div></body></html>');
   doc.close();
   setTimeout(()=>fr.contentWindow.print(),400);
 }
+
+
 
 function showRegRc(p){
   const pages=`<div class="page">${buildRcHtml(p,'chip',false)}</div><div class="page">${buildRcHtml(p,'seat',false)}</div>`;
@@ -1439,13 +1374,6 @@ function addSrc(){const inp=document.getElementById('newSrcName'),n=inp.value.tr
 function delSrc(i){sources.splice(i,1);save();renderSrcMgmt();refreshSrc();}
 function resetAll(){if(!confirm('모든 참가자 데이터를 초기화할까요?'))return;ps=[];nxId=1;movingP=null;regClosed={};regClosedAt={};save();updateRegUI();updateStats();renderBal();renderList();}
 
-async function qzConnectManual(){
-  const ind=document.getElementById('qzIndicator');
-  if(ind){ind.textContent='🖨 연결 중...';ind.style.color='var(--amber)';}
-  const ok=await qzConnect();
-  if(!ok&&ind){ind.textContent='🖨 QZ 연결 안됨';ind.style.color='var(--tx3)';}
-}
-
 load();
 regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
 window._appReady=true;
@@ -1453,8 +1381,6 @@ if(window._pendingFbData){
   window._loadFirebaseData(window._pendingFbData);
   window._pendingFbData=null;
 }
-// QZ Tray 자동 연결 시도
-setTimeout(()=>qzConnect(),1500);
 </script>
 </body>
 </html>
