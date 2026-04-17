@@ -6,7 +6,6 @@
 <title>홀덤 토너먼트 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -1270,59 +1269,77 @@ function updatePrev(){
 
 function getPrintCss(){return`*{box-sizing:border-box;margin:0;padding:0}body{margin:0;padding:0;background:#fff}.pages{display:block}.page{width:72mm;min-height:100mm;padding:6mm;border:1px dashed #ccc;margin:2mm;position:relative;overflow:hidden;page-break-after:always;break-after:page}@media print{body{margin:0}.pages{display:block}.page{border:none;margin:0;page-break-after:always;break-after:page}}`;}
 
-/* ── QZ Tray 연동 ── */
-let qzConnected=false;
-let qzPrinterName=null;
+/* ── QZ Tray 연동 (WebSocket) ── */
+let qzWs=null,qzConnected=false,qzPrinterName=null,qzCallbacks={},qzMsgId=0;
 
-async function qzConnect(){
-  try{
-    if(typeof qz==='undefined')return false;
-    if(!qz.websocket.isActive())await qz.websocket.connect();
-    qzConnected=true;
-    // 기본 프린터 자동 감지
-    const printer=await qz.printers.getDefault();
-    qzPrinterName=printer;
+function qzSend(data){
+  return new Promise((resolve,reject)=>{
+    if(!qzWs||qzWs.readyState!==WebSocket.OPEN){reject(new Error('QZ not connected'));return;}
+    const id='msg_'+(++qzMsgId);
+    data.uid=id;
+    qzCallbacks[id]={resolve,reject};
+    qzWs.send(JSON.stringify(data));
+    setTimeout(()=>{if(qzCallbacks[id]){delete qzCallbacks[id];reject(new Error('timeout'));}},8000);
+  });
+}
+
+function qzConnect(){
+  return new Promise((resolve)=>{
     const ind=document.getElementById('qzIndicator');
-    if(ind){ind.textContent='🖨 '+printer;ind.style.color='var(--green)';}
-    console.log('QZ 연결됨:',printer);
-    return true;
-  }catch(e){
-    qzConnected=false;
-    console.log('QZ 연결 안됨, 브라우저 인쇄 사용');
-    return false;
-  }
+    try{
+      const url=location.protocol==='https:'?'wss://localhost:8182':'ws://localhost:8181';
+      const ws=new WebSocket(url);
+      ws.onopen=async()=>{
+        qzWs=ws;qzConnected=true;
+        try{
+          const res=await qzSend({call:'printers.getDefault'});
+          qzPrinterName=res.result||res;
+          if(ind){ind.textContent='\u{1F5A8} '+qzPrinterName;ind.style.color='var(--green)';}
+        }catch(e){
+          if(ind){ind.textContent='\u{1F5A8} 연결됨';ind.style.color='var(--amber)';}
+        }
+        resolve(true);
+      };
+      ws.onmessage=e=>{
+        try{
+          const msg=JSON.parse(e.data);
+          if(msg.uid&&qzCallbacks[msg.uid]){
+            if(msg.error)qzCallbacks[msg.uid].reject(new Error(msg.error));
+            else qzCallbacks[msg.uid].resolve(msg.result||msg);
+            delete qzCallbacks[msg.uid];
+          }
+        }catch(err){}
+      };
+      ws.onerror=()=>{qzConnected=false;if(ind){ind.textContent='\u{1F5A8} QZ 연결 안됨';ind.style.color='var(--tx3)';}resolve(false);};
+      ws.onclose=()=>{qzConnected=false;qzWs=null;};
+    }catch(e){qzConnected=false;resolve(false);}
+  });
+}
+
+async function qzConnectManual(){
+  const ind=document.getElementById('qzIndicator');
+  if(ind){ind.textContent='\u{1F5A8} 연결 중...';ind.style.color='var(--amber)';}
+  await qzConnect();
 }
 
 async function qzPrint(htmlPages){
+  if(!qzConnected)await qzConnect();
+  if(!qzConnected||!qzPrinterName)return false;
   try{
-    if(!qzConnected)await qzConnect();
-    if(!qzConnected||!qzPrinterName)return false;
-    const fullHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${getPrintCss()}</style></head><body><div class="pages">${htmlPages}</div></body></html>`;
-    const cfg=qz.configs.create(qzPrinterName);
-    const data=[{type:'html',format:'plain',data:fullHtml}];
-    await qz.print(cfg,data);
+    const fullHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+getPrintCss()+'</style></head><body><div class="pages">'+htmlPages+'</div></body></html>';
+    await qzSend({call:'print',params:{printer:{name:qzPrinterName},data:[{type:'html',format:'plain',data:fullHtml}]}});
     return true;
-  }catch(e){
-    console.error('QZ 인쇄 오류:',e);
-    return false;
-  }
+  }catch(e){console.error('QZ print error:',e);return false;}
 }
 
 async function openWin(pages){
-  // QZ Tray로 먼저 시도, 실패하면 브라우저 인쇄
   const qzOk=await qzPrint(pages);
   if(qzOk)return;
-  // 폴백: iframe 인쇄
   let fr=document.getElementById('_printFrame');
-  if(!fr){
-    fr=document.createElement('iframe');
-    fr.id='_printFrame';
-    fr.style.cssText='position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none';
-    document.body.appendChild(fr);
-  }
+  if(!fr){fr=document.createElement('iframe');fr.id='_printFrame';fr.style.cssText='position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none';document.body.appendChild(fr);}
   const doc=fr.contentDocument||fr.contentWindow.document;
   doc.open();
-  doc.write(`<html><head><title>영수증</title><style>${getPrintCss()}</style></head><body><div class="pages">${pages}</div></body></html>`);
+  doc.write('<html><head><title>영수증</title><style>'+getPrintCss()+'</style></head><body><div class="pages">'+pages+'</div></body></html>');
   doc.close();
   setTimeout(()=>fr.contentWindow.print(),400);
 }
