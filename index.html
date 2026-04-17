@@ -1294,9 +1294,9 @@ function qzConnect(){
         try{
           const res=await qzSend({call:'printers.getDefault'});
           qzPrinterName=res.result||res;
-          if(ind){ind.textContent='\u{1F5A8} '+qzPrinterName;ind.style.color='var(--green)';}
+          if(ind){ind.textContent='🖨 '+qzPrinterName;ind.style.color='var(--green)';}
         }catch(e){
-          if(ind){ind.textContent='\u{1F5A8} 연결됨';ind.style.color='var(--amber)';}
+          if(ind){ind.textContent='🖨 연결됨';ind.style.color='var(--amber)';}
         }
         resolve(true);
       };
@@ -1310,7 +1310,7 @@ function qzConnect(){
           }
         }catch(err){}
       };
-      ws.onerror=()=>{qzConnected=false;if(ind){ind.textContent='\u{1F5A8} QZ 연결 안됨';ind.style.color='var(--tx3)';}resolve(false);};
+      ws.onerror=()=>{qzConnected=false;if(ind){ind.textContent='🖨 QZ 연결 안됨';ind.style.color='var(--tx3)';}resolve(false);};
       ws.onclose=()=>{qzConnected=false;qzWs=null;};
     }catch(e){qzConnected=false;resolve(false);}
   });
@@ -1318,7 +1318,7 @@ function qzConnect(){
 
 async function qzConnectManual(){
   const ind=document.getElementById('qzIndicator');
-  if(ind){ind.textContent='\u{1F5A8} 연결 중...';ind.style.color='var(--amber)';}
+  if(ind){ind.textContent='🖨 연결 중...';ind.style.color='var(--amber)';}
   await qzConnect();
 }
 
