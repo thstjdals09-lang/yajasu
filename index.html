@@ -1212,7 +1212,16 @@ function togRcSec(head){const body=head.nextElementSibling;const open=body.class
 
 function divH(style,color){
   const c=color||'#111';
-  const s={dashed:`border-top:1px dashed ${c}99`,solid:`border-top:1px solid ${c}99`,double:`border-top:3px double ${c}99`,none:'display:none'};
+  // hex를 rgba로 변환해서 투명도 적용
+  const toRgba=(hex,a)=>{
+    const h=hex.replace('#','');
+    const r=parseInt(h.length===3?h[0]+h[0]:h.slice(0,2),16);
+    const g=parseInt(h.length===3?h[1]+h[1]:h.slice(2,4),16);
+    const b=parseInt(h.length===3?h[2]+h[2]:h.slice(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  };
+  const cc=toRgba(c,0.4);
+  const s={dashed:`border-top:1px dashed ${cc}`,solid:`border-top:1px solid ${cc}`,double:`border-top:3px double ${cc}`};
   return style==='none'?'':`<div style="margin:8px 0;${s[style]||s.dashed}"></div>`;
 }
 
