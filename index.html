@@ -9,7 +9,7 @@
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import{getDatabase,ref,set,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getDatabase,ref,set,push,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const app=initializeApp({
   apiKey:"AIzaSyDOhs7nLcpKSKmuoAlGXwU11UFHOaN5Vgk",
@@ -30,6 +30,18 @@ window._fbSave=function(data){
   fbSyncTimer=setTimeout(()=>{
     set(ref(db,'tournament'),data).catch(e=>console.error('fb sync',e));
   },800);
+};
+
+// 메인 PC 인쇄 요청 큐에 추가
+window._fbPrintRequest=function(htmlPages,label){
+  if(!auth.currentUser)return;
+  push(ref(db,'printQueue'),{
+    html:htmlPages,
+    label:label||'영수증',
+    requestedBy:auth.currentUser.email,
+    requestedAt:Date.now(),
+    status:'pending'
+  }).catch(e=>console.error('print queue error',e));
 };
 
 onAuthStateChanged(auth,user=>{
@@ -447,6 +459,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         <input type="text" id="srchIn" placeholder="참가자 검색" style="width:160px;padding-left:34px" oninput="doSearch(this.value)">
         <div class="search-result" id="srchResult"></div>
       </div>
+      <button class="btn btn-s btn-sm" onclick="openBalancing()">오픈밸런싱</button>
       <button class="btn btn-pu btn-sm" onclick="openCombine()">컨바인</button>
     </div>
   </div>
@@ -992,7 +1005,65 @@ function renderBal(){
   }).join('');
 }
 
-function openCombine(){
+function openBalancing(){
+  if(!balEv){alert('이벤트를 먼저 선택하세요.');return;}
+  const ap=ps.filter(p=>p.eventId===balEv&&!p.busted);
+  const ts=[...new Set(ap.map(p=>p.table))].sort((a,b)=>a-b);
+  if(ts.length<2){alert('테이블이 2개 이상 있어야 합니다.');return;}
+  const max=getMax(balEv);
+  const total=ap.length;
+  const avg=Math.ceil(total/ts.length);
+
+  // 각 테이블 현황
+  const tm={};ts.forEach(t=>{tm[t]=ap.filter(p=>p.table===t).length;});
+
+  // 이미 균형이면
+  const cnts=Object.values(tm),mx=Math.max(...cnts),mn=Math.min(...cnts);
+  if(mx-mn<=1){alert('이미 균형 상태입니다!');return;}
+
+  // 미리보기 생성
+  const moves=[];
+  const occupied={};
+  ts.forEach(t=>{occupied[t]=ap.filter(p=>p.table===t).map(p=>p.seat);});
+
+  // 많은 테이블에서 적은 테이블로 이동
+  const sorted=[...ts].sort((a,b)=>tm[b]-tm[a]);
+  for(const fromT of sorted){
+    while(tm[fromT]>avg){
+      // 가장 적은 테이블 찾기
+      const toT=sorted.slice().sort((a,b)=>tm[a]-tm[b])[0];
+      if(toT===fromT||tm[toT]>=avg)break;
+      // 이동할 사람 선택 (마지막 등록 순)
+      const candidates=ap.filter(p=>p.table===fromT&&!moves.find(m=>m.pid===p.id));
+      if(!candidates.length)break;
+      const person=candidates[candidates.length-1];
+      // 빈 자리 찾기
+      const blocked=getBlockedSeats(balEv);
+      const taken=ap.filter(p=>p.table===toT).map(p=>p.seat).concat(moves.filter(m=>m.toTable===toT).map(m=>m.toSeat));
+      const avail=[];
+      for(let s=1;s<=max;s++)if(!taken.includes(s)&&!blocked.includes(s))avail.push(s);
+      if(!avail.length)break;
+      const seat=avail[Math.floor(Math.random()*avail.length)];
+      moves.push({pid:person.id,name:person.name,fromTable:fromT,toTable:toT,toSeat:seat});
+      tm[fromT]--;tm[toT]++;
+    }
+  }
+
+  if(!moves.length){alert('이동이 필요하지 않습니다.');return;}
+
+  const preview=moves.map(m=>`T${m.fromTable} → T${m.toTable} / ${m.toSeat}번 : ${m.name}`).join('\n');
+  if(!confirm(`오픈 밸런싱 실행\n\n${preview}\n\n총 ${moves.length}명 이동 후 영수증을 출력합니다.`))return;
+
+  moves.forEach(m=>{
+    const p=ps.find(x=>x.id===m.pid);
+    if(p){p.prevTable=p.table;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}
+  });
+
+  save();updateStats();renderBal();
+  const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable})).filter(x=>x.p);
+  showMoveRc(items);
+}
+
   cmbSel=[];
   if(!balEv){alert('이벤트를 먼저 선택하세요.');return;}
   cmbEvId=balEv;
@@ -1138,7 +1209,8 @@ function divH(style,color){
 }
 
 function buildRcHtml(p,type,isMove,fromTable){
-  const cfg=isMove?RC.move:RC.entry;
+  // 이동 영수증은 등록 영수증의 스타일(폰트,색상,이미지)을 공유하고 텍스트만 별도
+  const cfg=isMove?{...RC.entry,...RC.move}:RC.entry;
   const pad=n=>String(n).padStart(2,'0');
   const d=p.time instanceof Date?p.time:new Date(p.time);
   const ds=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate()),ts=pad(d.getHours())+':'+pad(d.getMinutes());
@@ -1191,8 +1263,7 @@ function updatePrev(){
   if(pm)pm.innerHTML=buildRcHtml(mock,'move',true,1);
 }
 
-function getPrintCss(){return`*{box-sizing:border-box;margin:0;padding:0}body{margin:0;padding:0;background:#fff}.pages{display:flex;flex-wrap:wrap}.page{width:72mm;min-height:100mm;padding:6mm;border:1px dashed #ccc;margin:2mm;position:relative;overflow:hidden}@media print{body{margin:0}.pages{display:flex}.page{border:none;margin:0;break-inside:avoid}}`;}
-function openWin(pages){
+function getPrintCss(){return`*{box-sizing:border-box;margin:0;padding:0}body{margin:0;padding:0;background:#fff}.pages{display:block}.page{width:72mm;min-height:100mm;padding:6mm;border:1px dashed #ccc;margin:2mm;position:relative;overflow:hidden;page-break-after:always;break-after:page}@media print{body{margin:0}.pages{display:block}.page{border:none;margin:0;page-break-after:always;break-after:page}}`;};function openWin(pages){
   let fr=document.getElementById('_printFrame');
   if(!fr){
     fr=document.createElement('iframe');
@@ -1208,14 +1279,18 @@ function openWin(pages){
 }
 
 function showRegRc(p){
-  openWin(`<div class="page">${buildRcHtml(p,'chip',false)}</div><div class="page">${buildRcHtml(p,'seat',false)}</div>`);
+  const pages=`<div class="page">${buildRcHtml(p,'chip',false)}</div><div class="page">${buildRcHtml(p,'seat',false)}</div>`;
+  openWin(pages);
+  if(window._fbPrintRequest)window._fbPrintRequest(pages,`등록 #${p.num} ${p.name}`);
 }
 function showMoveRc(items){
   lastMoveItems=items;
-  openWin(items.map(({p,fromTable})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable)}</div>`).join(''));
+  const pages=items.map(({p,fromTable})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable)}</div>`).join('');
+  openWin(pages);
+  if(window._fbPrintRequest)window._fbPrintRequest(pages,`이동 ${items.map(x=>x.p.name).join(', ')}`);
 }
 function closeOv(id){document.getElementById(id).classList.remove('on');}
-function printBalRc(){if(!lastMoveItems.length)return;openWin(lastMoveItems.map(({p,fromTable})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable)}</div>`).join(''));}
+function printBalRc(){if(!lastMoveItems.length)return;const pages=lastMoveItems.map(({p,fromTable})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable)}</div>`).join('');openWin(pages);}
 
 function parseTableInput(str){
   const nums=new Set();
