@@ -622,6 +622,7 @@ let RC={
     evLabel:'이벤트',dateLabel:'일시',numLabel:'참가 번호',nameLabel:'참가자',
     font:'Courier New',logoSize:15,subSize:11,typeSize:11,bodySize:12,numSize:30,seatSize:14,footerSize:11,
     divStyle:'dashed',textColor:'#111',paperColor:'#ffffff',
+    paddingTop:6,paddingBottom:6,paddingLeft:6,paddingRight:6,
     bgImg:'',bgOpacity:0.15,bgSize:'cover',bgPos:'center',
     topImg:'',topImgOpacity:1.0,topImgHeight:60,topImgAlign:'center',
     bottomImg:'',bottomImgOpacity:1.0,bottomImgHeight:60,bottomImgAlign:'center',
@@ -633,6 +634,7 @@ let RC={
     evLabel:'이벤트',dateLabel:'일시',numLabel:'참가 번호',nameLabel:'참가자',
     font:'Courier New',logoSize:15,subSize:11,typeSize:11,bodySize:12,numSize:30,seatSize:14,footerSize:11,
     divStyle:'dashed',textColor:'#111',paperColor:'#ffffff',
+    paddingTop:6,paddingBottom:6,paddingLeft:6,paddingRight:6,
     bgImg:'',bgOpacity:0.15,bgSize:'cover',bgPos:'center',
     topImg:'',topImgOpacity:1.0,topImgHeight:60,topImgAlign:'center',
     bottomImg:'',bottomImgOpacity:1.0,bottomImgHeight:60,bottomImgAlign:'center',
@@ -1197,6 +1199,7 @@ function buildTb(mode){
   const sections=[
     {title:'문구',html:tf(),open:true},
     {title:'폰트 크기',html:[nf('로고','logoSize',10,28),nf('서브타이틀','subSize',8,20),nf('타입 라벨','typeSize',8,20),nf('본문','bodySize',8,20),nf('참가번호 (큰 숫자)','numSize',16,60),nf('테이블·좌석','seatSize',10,28),nf('하단 문구','footerSize',8,18)].join(''),open:false},
+    {title:'여백 (mm)',html:[nf('상단','paddingTop',0,30),nf('하단','paddingBottom',0,30),nf('좌','paddingLeft',0,20),nf('우','paddingRight',0,20)].join(''),open:true},
     {title:'폰트 & 색상',html:sf('폰트','font',['Courier New','Georgia','Arial','Times New Roman','serif','monospace','sans-serif'])+sf('구분선','divStyle',['dashed','solid','double','none'])+`<div class="fg"><label>글자색</label><input type="color" value="${cfg.textColor||'#111'}" oninput="setRC('${mode}','textColor',this.value)"></div>`+`<div class="fg"><label>종이 배경색</label><input type="color" value="${cfg.paperColor||'#ffffff'}" oninput="setRC('${mode}','paperColor',this.value)"></div>`,open:false},
     {title:'배경 이미지 (워터마크)',html:imgZone('배경 이미지','bgImg','bgOpacity',sf('배경 크기','bgSize',['cover','contain','auto'])+sf('배경 위치','bgPos',['center','top','bottom','left','right'])),open:false},
     {title:'상단 이미지',html:imgZone('상단 이미지','topImg','topImgOpacity',sldr('높이(px)','topImgHeight',20,200,1)+sf('정렬','topImgAlign',['center','left','right'])),open:false},
@@ -1209,8 +1212,8 @@ function togRcSec(head){const body=head.nextElementSibling;const open=body.class
 
 function divH(style,color){
   const c=color||'#111';
-  const s={dashed:`border-top:1px dashed ${c}55`,solid:`border-top:1px solid ${c}55`,double:`border-top:3px double ${c}55`,none:'border:none'};
-  return`<div style="margin:8px 0;${s[style]||s.dashed}"></div>`;
+  const s={dashed:`border-top:1px dashed ${c}99`,solid:`border-top:1px solid ${c}99`,double:`border-top:3px double ${c}99`,none:'display:none'};
+  return style==='none'?'':`<div style="margin:8px 0;${s[style]||s.dashed}"></div>`;
 }
 
 function buildRcHtml(p,type,isMove,fromTable){
@@ -1227,7 +1230,7 @@ function buildRcHtml(p,type,isMove,fromTable){
   const topImg=cfg.topImg?`<div style="text-align:${cfg.topImgAlign||'center'};margin-bottom:8px;opacity:${cfg.topImgOpacity||1}"><img src="${cfg.topImg}" style="height:${cfg.topImgHeight||60}px;max-width:100%;object-fit:contain"></div>`:'';
   const botImg=cfg.bottomImg?`<div style="text-align:${cfg.bottomImgAlign||'center'};margin-top:8px;opacity:${cfg.bottomImgOpacity||1}"><img src="${cfg.bottomImg}" style="height:${cfg.bottomImgHeight||60}px;max-width:100%;object-fit:contain"></div>`:'';
   const midImg=cfg.midImg?`<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0;opacity:${cfg.midImgOpacity||0.08}"><img src="${cfg.midImg}" style="width:${cfg.midImgSize||120}px;height:${cfg.midImgSize||120}px;object-fit:contain"></div>`:'';
-  const wrap=content=>`<div style="position:relative;background:${paper};font-family:'${font}',monospace;color:${c};line-height:1.65;overflow:hidden">${bgLayer}${midImg}<div style="position:relative;z-index:1;padding:16px 14px">${topImg}${content}${botImg}</div></div>`;
+  const wrap=content=>`<div style="position:relative;background:${paper};font-family:'${font}',monospace;color:${c};line-height:1.65;overflow:hidden">${bgLayer}${midImg}<div style="position:relative;z-index:1;padding:${cfg.paddingTop||6}mm ${cfg.paddingRight||6}mm ${cfg.paddingBottom||6}mm ${cfg.paddingLeft||6}mm">${topImg}${content}${botImg}</div></div>`;
 
   if(isMove){return wrap(`
 <div style="text-align:center;font-weight:700;letter-spacing:1px;margin-bottom:1px;font-size:${sz.logo}px">${cfg.logo}</div>
