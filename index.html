@@ -23,20 +23,25 @@ const app=initializeApp({
 const auth=getAuth(app);
 const db=getDatabase(app);
 
+const _deviceId=Math.random().toString(36).slice(2);
 let fbSyncTimer=null;
+let _lastSavedHash=null;
+
 window._fbSave=function(data){
   if(!auth.currentUser)return;
+  // deviceId 포함해서 저장 (내 저장인지 구분용)
+  const payload={...data,_deviceId,_ts:Date.now()};
   clearTimeout(fbSyncTimer);
   fbSyncTimer=setTimeout(()=>{
-    set(ref(db,'tournament'),data).catch(e=>console.error('fb sync',e));
-  },100);
+    set(ref(db,'tournament'),payload).catch(e=>console.error('fb sync',e));
+  },50);
 };
 
-// 즉시 저장 (연속 버스트 등 빠른 처리용)
 window._fbDirectSave=function(data){
   if(!auth.currentUser)return;
   clearTimeout(fbSyncTimer);
-  set(ref(db,'tournament'),data).catch(e=>console.error('fb direct sync',e));
+  const payload={...data,_deviceId,_ts:Date.now()};
+  set(ref(db,'tournament'),payload).catch(e=>console.error('fb direct sync',e));
 };
 
 // 메인 PC 인쇄 요청 큐에 추가
@@ -63,8 +68,8 @@ onAuthStateChanged(auth,user=>{
   onValue(ref(db,'tournament'),snap=>{
     const data=snap.val();
     if(!data)return;
-    // 내가 방금 저장한 직후엔 Firebase 업데이트 무시 (1.5초)
-    if(window._localSaveTime&&Date.now()-window._localSaveTime<500)return;
+    // 내 기기에서 저장한 데이터면 무시 (되돌림 방지)
+    if(data._deviceId===_deviceId)return;
     if(window._appReady)window._loadFirebaseData(data);
     else window._pendingFbData=data;
   });
@@ -787,17 +792,13 @@ function applyData(data){
 }
 
 function save(){
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>{
-    try{
-      const data=buildSaveData();
-      localStorage.setItem(SAVE_KEY,JSON.stringify(data));
-      window._localSaveTime=Date.now();
-      if(window._fbSave)window._fbSave(data);
-      const el=document.getElementById('saveIndicator');
-      if(el)el.innerHTML='<div class="save-dot"></div><span>저장됨</span>';
-    }catch(e){console.error('save error',e);}
-  },300);
+  try{
+    const data=buildSaveData();
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    if(window._fbSave)window._fbSave(data);
+    const el=document.getElementById('saveIndicator');
+    if(el)el.innerHTML='<div class="save-dot"></div><span>저장됨</span>';
+  }catch(e){console.error('save error',e);}
 }
 
 function load(){
@@ -1156,14 +1157,7 @@ function bust(pid){
   p.bustedSeat=p.seat;
   p.bustedAt=new Date().toISOString();
   p.busted=true;
-  try{
-    const data=buildSaveData();
-    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
-    window._localSaveTime=Date.now();
-    if(window._fbDirectSave)window._fbDirectSave(data);
-    else if(window._fbSave)window._fbSave(data);
-  }catch(e){console.error('bust save error',e);}
-  updateStats();renderBal();
+  save();updateStats();renderBal();
 }
 function startMove(pid){
   movingP=ps.find(x=>x.id===pid);if(!movingP)return;
@@ -1413,14 +1407,7 @@ function unBust(pid){
   p.bustedTable=undefined;
   p.bustedSeat=undefined;
   p.bustedAt=undefined;
-  try{
-    const data=buildSaveData();
-    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
-    window._localSaveTime=Date.now();
-    if(window._fbDirectSave)window._fbDirectSave(data);
-    else if(window._fbSave)window._fbSave(data);
-  }catch(e){console.error('unBust save error',e);}
-  updateStats();renderBal();
+  save();updateStats();renderBal();
   openBustList();
 }
 
@@ -1660,14 +1647,7 @@ function quickBustConfirm(){
   p.bustedSeat=p.seat;
   p.bustedAt=new Date().toISOString();
   p.busted=true;
-  try{
-    const data=buildSaveData();
-    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
-    window._localSaveTime=Date.now();
-    if(window._fbDirectSave)window._fbDirectSave(data);
-    else if(window._fbSave)window._fbSave(data);
-  }catch(e){console.error('bust save error',e);}
-  updateStats();renderBal();
+  save();updateStats();renderBal();
   closeModal('quickBustModal');
 }
 
