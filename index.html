@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>♥강민혁♥</title>
+<title>홀덤 토너먼트 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -916,12 +916,12 @@ function highlightPlayer(pid){
 function go(name,btn){
   document.querySelectorAll('.ni,.bn-item').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
-  // sync the other nav too
   document.querySelectorAll(`.ni,.bn-item`).forEach(b=>{
     if((b.getAttribute('onclick')||'').includes(`'${name}'`))b.classList.add('on');
   });
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('v-'+name).classList.add('on');
+  sessionStorage.setItem('lastTab',name);
   if(name==='bal')renderBal();
   if(name==='list'){listPills();renderList();}
   if(name==='rc'){buildTb('entry');buildTb('move');updatePrev();}
@@ -1995,6 +1995,9 @@ if(window._pendingFbData){
   window._loadFirebaseData(window._pendingFbData);
   window._pendingFbData=null;
 }
+// 마지막 탭 복원
+const lastTab=sessionStorage.getItem('lastTab');
+if(lastTab&&lastTab!=='reg')go(lastTab);
 </script>
 </body>
 </html>
