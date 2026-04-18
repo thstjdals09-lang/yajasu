@@ -448,12 +448,13 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         <div class="fg"><label>획득 경로</label><select id="srcIn"></select></div>
         <div class="fg">
           <label>자리 지정 <span style="font-weight:400;color:var(--tx3);font-size:10px">(비우면 자동)</span></label>
-          <div style="display:flex;gap:6px">
-            <input id="manualTable" type="number" min="1" placeholder="테이블" style="text-align:center" oninput="updateManualSeatSelect()">
-            <select id="manualSeat" style="text-align:center">
-              <option value="">좌석</option>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="manualTable" type="number" min="1" placeholder="테이블" style="text-align:center;width:80px;flex-shrink:0" oninput="updateManualSeatSelect()">
+            <select id="manualSeat" style="flex:1">
+              <option value="">좌석 선택</option>
             </select>
           </div>
+          <div id="manualTableLabel" style="font-size:11px;color:var(--tx3);margin-top:4px"></div>
         </div>
       </div>
       <div class="fr" style="margin-bottom:12px">
@@ -958,18 +959,40 @@ function renderSeatBlock(){
 function updateManualSeatSelect(){
   const t=parseInt(document.getElementById('manualTable').value);
   const sel=document.getElementById('manualSeat');
-  sel.innerHTML='<option value="">좌석</option>';
+  sel.innerHTML='<option value="">좌석 선택</option>';
   if(!t||!selEv)return;
   const max=getMax(selEv);
   const blocked=getBlockedSeats(selEv);
   const taken=ps.filter(p=>p.eventId===selEv&&p.table===t&&!p.busted).map(p=>p.seat);
+  const isNewTable=!ps.some(p=>p.eventId===selEv&&p.table===t&&!p.busted);
+
+  // 새 테이블이면 안내 표시
+  const label=document.getElementById('manualTableLabel');
+  if(label){
+    if(isNewTable&&taken.length===0){
+      label.textContent='(새 테이블 — 등록 시 자동 생성)';
+      label.style.color='var(--green)';
+    } else {
+      label.textContent=`(${taken.length}명 착석 중)`;
+      label.style.color='var(--tx3)';
+    }
+  }
+
   for(let s=1;s<=max;s++){
     const isBlocked=blocked.includes(s);
     const isTaken=taken.includes(s);
     const opt=document.createElement('option');
     opt.value=s;
-    opt.textContent=`${s}번${isTaken?' (점유)':''}${isBlocked?' (차단)':''}`;
-    if(isTaken||isBlocked)opt.style.color='var(--red)';
+    if(isTaken){
+      const occupant=ps.find(p=>p.eventId===selEv&&p.table===t&&p.seat===s&&!p.busted);
+      opt.textContent=`${s}번 — ${occupant?occupant.name:'점유'}`;
+      opt.style.cssText='color:#ef4444;background:#2d0a0a';
+    } else if(isBlocked){
+      opt.textContent=`${s}번 — 차단됨`;
+      opt.style.cssText='color:#f59e0b;background:#2d1a00';
+    } else {
+      opt.textContent=`${s}번`;
+    }
     sel.appendChild(opt);
   }
 }
