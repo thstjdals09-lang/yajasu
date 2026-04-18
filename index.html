@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>홀덤 토너먼트 매니저</title>
+<title>♥강민혁♥</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -954,9 +954,9 @@ function pills(cid,cur,fn,showT){
     d.onclick=()=>fn(e.id);el.appendChild(d);
   });
 }
-function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();document.getElementById('manualTable').value='';const s=document.getElementById('manualSeat');s.value='';s.disabled=true;const l=document.getElementById('manualTableLabel');if(l)l.textContent='';},true);}
-function balPills(){pills('balPills',balEv,id=>{balEv=id;cancelMove();renderBal();updateStats();},true);}
-function listPills(){pills('listPills',listEv,id=>{listEv=id;listPills();renderList();},true);}
+function regPills(){pills('regPills',selEv,id=>{selEv=id;sessionStorage.setItem('selEv',id);regPills();updateStats();updateRegUI();renderSeatBlock();document.getElementById('manualTable').value='';const s=document.getElementById('manualSeat');s.value='';s.disabled=true;const l=document.getElementById('manualTableLabel');if(l)l.textContent='';},true);}
+function balPills(){pills('balPills',balEv,id=>{balEv=id;sessionStorage.setItem('balEv',id);cancelMove();renderBal();updateStats();},true);}
+function listPills(){pills('listPills',listEv,id=>{listEv=id;sessionStorage.setItem('listEv',id);listPills();renderList();},true);}
 function refreshSrc(){const el=document.getElementById('srcIn');if(!el)return;el.innerHTML=sources.map(s=>`<option>${s}</option>`).join('');}
 
 function getMax(eid){return(evs.find(e=>e.id===eid)||{}).maxSeat||MAX;}
@@ -1989,6 +1989,14 @@ function delSrc(i){sources.splice(i,1);save();renderSrcMgmt();refreshSrc();}
 function resetAll(){if(!confirm('모든 참가자 데이터를 초기화할까요?'))return;ps=[];nxId=1;movingP=null;regClosed={};regClosedAt={};save();updateRegUI();updateStats();renderBal();renderList();}
 
 load();
+// 세션 복원 (이벤트 선택 + 탭)
+const _ss=sessionStorage;
+const _savedSelEv=parseInt(_ss.getItem('selEv'));
+const _savedBalEv=parseInt(_ss.getItem('balEv'));
+const _savedListEv=parseInt(_ss.getItem('listEv'));
+if(_savedSelEv&&evs.find(e=>e.id===_savedSelEv))selEv=_savedSelEv;
+if(_savedBalEv&&evs.find(e=>e.id===_savedBalEv))balEv=_savedBalEv;
+if(_savedListEv&&evs.find(e=>e.id===_savedListEv))listEv=_savedListEv;
 regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
 window._appReady=true;
 if(window._pendingFbData){
@@ -1996,8 +2004,9 @@ if(window._pendingFbData){
   window._pendingFbData=null;
 }
 // 마지막 탭 복원
-const lastTab=sessionStorage.getItem('lastTab');
-if(lastTab&&lastTab!=='reg')go(lastTab);
+const _lastTab=_ss.getItem('lastTab');
+if(_lastTab)go(_lastTab);
+else go('reg');
 </script>
 </body>
 </html>
