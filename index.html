@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>홀덤 토너먼트 매니저</title>
+<title>♥강민혁♥</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -57,6 +57,7 @@ window._fbPrintRequest=function(htmlPages,label){
 };
 
 onAuthStateChanged(auth,user=>{
+  document.getElementById('loadingScreen').style.display='none';
   if(!user){
     document.getElementById('loginScreen').style.display='flex';
     document.getElementById('appShell').style.display='none';
@@ -422,7 +423,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <body>
 
 <!-- 로그인 -->
-<div class="auth-screen" id="loginScreen" style="display:flex">
+<div class="auth-screen" id="loginScreen" style="display:none">
   <div class="auth-box">
     <div class="auth-logo">HOLDEM MGR</div>
     <div class="auth-title">로그인</div>
@@ -432,6 +433,13 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <div class="auth-err" id="loginErr"></div>
     <button class="auth-btn" id="loginBtn">로그인</button>
   </div>
+</div>
+
+<!-- 로딩 -->
+<div id="loadingScreen" style="display:flex;position:fixed;inset:0;background:var(--bg);align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px">
+  <div style="font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.12em;color:var(--tx3)">HOLDEM MGR</div>
+  <div style="width:32px;height:32px;border:3px solid var(--bd2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite"></div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </div>
 
 <!-- 앱 본체 -->
@@ -795,6 +803,7 @@ function save(){
   try{
     const data=buildSaveData();
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    window._lastSaveTs=Date.now();
     if(window._fbSave)window._fbSave(data);
     const el=document.getElementById('saveIndicator');
     if(el)el.innerHTML='<div class="save-dot"></div><span>저장됨</span>';
@@ -810,6 +819,10 @@ function load(){
 }
 
 window._loadFirebaseData=function(data){
+  // Firebase 데이터가 로컬보다 최신일 때만 적용
+  const fbTs=data._ts||0;
+  const localTs=window._lastSaveTs||0;
+  if(fbTs<localTs)return; // 내 로컬이 더 최신이면 무시
   applyData(data);
   regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
   const active=document.querySelector('.view.on');
