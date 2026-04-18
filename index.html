@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>♥강민혁♥</title>
+<title>홀덤 토너먼트 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -66,10 +66,18 @@ onAuthStateChanged(auth,user=>{
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='block';
   document.getElementById('userEmailLabel').textContent=user.email;
+  let _firstLoad=true;
   onValue(ref(db,'tournament'),snap=>{
     const data=snap.val();
     if(!data)return;
-    // 내 기기에서 저장한 데이터면 무시 (되돌림 방지)
+    // 첫 로드는 무조건 적용 (새로고침 후 최신 데이터 복원)
+    if(_firstLoad){
+      _firstLoad=false;
+      if(window._appReady)window._loadFirebaseData(data);
+      else window._pendingFbData=data;
+      return;
+    }
+    // 이후엔 내 기기 저장은 무시, 다른 기기 저장만 반영
     if(data._deviceId===_deviceId)return;
     if(window._appReady)window._loadFirebaseData(data);
     else window._pendingFbData=data;
@@ -819,10 +827,6 @@ function load(){
 }
 
 window._loadFirebaseData=function(data){
-  // Firebase 데이터가 로컬보다 최신일 때만 적용
-  const fbTs=data._ts||0;
-  const localTs=window._lastSaveTs||0;
-  if(fbTs<localTs)return; // 내 로컬이 더 최신이면 무시
   applyData(data);
   regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
   const active=document.querySelector('.view.on');
