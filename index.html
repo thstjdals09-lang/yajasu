@@ -1008,20 +1008,26 @@ function doReg(){
   err.textContent='';
   const ev=evs.find(e=>e.id===selEv);
 
-  // 수동 자리 지정 확인
-  const manualTableVal=document.getElementById('manualTable').value;
+  // 수동 자리 지정 확인 - 테이블+좌석 둘 다 입력된 경우만
+  const manualTableVal=document.getElementById('manualTable').value.trim();
   const manualSeatVal=document.getElementById('manualSeat').value;
   let table,seat;
 
   if(manualTableVal&&manualSeatVal){
     table=parseInt(manualTableVal);
     seat=parseInt(manualSeatVal);
+    if(isNaN(table)||isNaN(seat)){
+      err.textContent='테이블·좌석 번호를 올바르게 입력해주세요.';return;
+    }
     // 이미 사람이 있는지 확인
     const existing=ps.find(p=>p.eventId===selEv&&p.table===table&&p.seat===seat&&!p.busted);
     if(existing){
       if(!confirm(`T${table} · ${seat}번석에 이미 "${existing.name}"이 있습니다.\n그래도 이 자리에 등록할까요?`))return;
     }
+  } else if(manualTableVal&&!manualSeatVal){
+    err.textContent='좌석 번호도 선택해주세요.';return;
   } else {
+    // 둘 다 비어있으면 자동 배정
     const assigned=assignSeat(selEv);
     table=assigned.table;
     seat=assigned.seat;
