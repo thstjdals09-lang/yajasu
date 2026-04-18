@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>♥강민혁♥</title>
+<title>홀덤 토너먼트 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import{getDatabase,ref,set,push,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getDatabase,ref,set,get,push,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const app=initializeApp({
   apiKey:"AIzaSyDOhs7nLcpKSKmuoAlGXwU11UFHOaN5Vgk",
@@ -48,26 +48,40 @@ window._fbPrintRequest=function(htmlPages,label){
 };
 
 onAuthStateChanged(auth,user=>{
-  document.getElementById('loadingScreen').style.display='none';
   if(!user){
+    document.getElementById('loadingScreen').style.display='none';
     document.getElementById('loginScreen').style.display='flex';
     document.getElementById('appShell').style.display='none';
     return;
   }
+  // 로그인 됨 - Firebase에서 데이터 먼저 받고 앱 시작
+  const dbRef=ref(db,'tournament');
+  get(dbRef).then(snap=>{
+    const data=snap.val();
+    if(data)window._pendingFbData=data;
+    _startApp(user);
+    // 이후 실시간 감지
+    onValue(dbRef,snap=>{
+      const d=snap.val();
+      if(!d||d._sid===MY_ID)return;
+      if(window._appReady)window._loadFirebaseData(d);
+    });
+  }).catch(()=>{
+    _startApp(user);
+    onValue(dbRef,snap=>{
+      const d=snap.val();
+      if(!d||d._sid===MY_ID)return;
+      if(window._appReady)window._loadFirebaseData(d);
+    });
+  });
+});
+
+function _startApp(user){
+  document.getElementById('loadingScreen').style.display='none';
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='block';
   document.getElementById('userEmailLabel').textContent=user.email;
-
-  onValue(ref(db,'tournament'),snap=>{
-    const data=snap.val();
-    if(!data)return;
-    // 내가 방금 저장한 거면 무시 (내 화면은 이미 반영됨)
-    if(data._sid===MY_ID)return;
-    // 다른 기기 저장 → 즉시 반영
-    if(window._appReady)window._loadFirebaseData(data);
-    else window._pendingFbData=data;
-  });
-});
+}
 
 document.addEventListener('DOMContentLoaded',()=>{
   const loginBtn=document.getElementById('loginBtn');
