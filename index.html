@@ -714,6 +714,7 @@ let nxId=1;
 let regClosed={};
 let regClosedAt={};
 let blockedSeats={};  // {eventId: [1,9]} — 이벤트별 차단 좌석번호 목록 (모든 테이블에 공통 적용)
+let tableOrder={};    // {eventId: [t1,t2,...]} — 이벤트별 테이블 오픈 순서
 let selEv=null,balEv=null,listEv=null,movingP=null;
 let cmbSel=[],cmbEvId=null,lastMoveItems=[];
 
@@ -749,7 +750,7 @@ let RC={
 let saveTimer=null;
 
 function buildSaveData(){
-  return{evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,blockedSeats,RC};
+  return{evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,blockedSeats,tableOrder,RC};
 }
 
 function applyData(data){
@@ -761,6 +762,7 @@ function applyData(data){
   if(data.regClosed!==undefined)regClosed=data.regClosed||{};
   if(data.regClosedAt)regClosedAt=data.regClosedAt||{};
   if(data.blockedSeats)blockedSeats=data.blockedSeats||{};
+  if(data.tableOrder)tableOrder=data.tableOrder||{};
   if(data.RC)RC={entry:{...RC.entry,...(data.RC.entry||{})},move:{...RC.move,...(data.RC.move||{})}};
 }
 
@@ -995,7 +997,21 @@ function renderSeatBlock(){
     </div>`;
 }
 
-function updateManualSeatSelect(){
+function registerTableOrder(eid,table){
+  if(!tableOrder[eid])tableOrder[eid]=[];
+  if(!tableOrder[eid].includes(table))tableOrder[eid].push(table);
+}
+
+function getTableOrder(eid){
+  const ap=ps.filter(p=>p.eventId===eid&&!p.busted);
+  const activeTables=new Set(ap.map(p=>p.table));
+  const order=tableOrder[eid]||[];
+  // 순서 배열에서 현재 활성 테이블만 필터링 (오픈 순서 유지)
+  const ordered=order.filter(t=>activeTables.has(t));
+  // 순서 배열에 없는 테이블은 뒤에 추가 (번호순)
+  const missing=[...activeTables].filter(t=>!order.includes(t)).sort((a,b)=>a-b);
+  return[...ordered,...missing];
+}
   const t=parseInt(document.getElementById('manualTable').value);
   const seatIn=document.getElementById('manualSeat');
   const label=document.getElementById('manualTableLabel');
@@ -1070,6 +1086,7 @@ function doReg(){
   const num=ps.filter(p=>p.eventId===selEv).length+1;
   const p={id:nxId++,name,nick,src,eventId:selEv,evName:ev.name,num,table,seat,busted:false,moved:false,prevTable:null,time:new Date(),reentry:false};
   ps.push(p);
+  registerTableOrder(selEv,table);
   document.getElementById('nameIn').value='';
   document.getElementById('nickIn').value='';
   document.getElementById('manualTable').value='';
@@ -1105,10 +1122,8 @@ function doReentry(pid){
   const{table,seat}=assignSeat(orig.eventId);
   const p={id:nxId++,name:orig.name,nick:orig.nick,src:orig.src,eventId:orig.eventId,evName:orig.evName,num,table,seat,busted:false,moved:false,prevTable:null,time:new Date(),reentry:true,reentryCount:reentryCount+1,reentryOrigName:origName};
   ps.push(p);
+  registerTableOrder(orig.eventId,table);
   save();updateStats();renderList();showRegRc(p);
-}
-
-function bust(pid){
   const p=ps.find(x=>x.id===pid);if(!p||p.busted)return;
   if(!confirm(`"${p.name}" 버스트 처리할까요?`))return;
   p.busted=true;save();updateStats();renderBal();
@@ -1159,7 +1174,8 @@ function renderBal(){
     wb.classList.add('on');
   }
   if(!ts.size){document.getElementById('tgrid').innerHTML='<div class="empty">활성 참가자 없음</div>';return;}
-  document.getElementById('tgrid').innerHTML=[...ts].sort((a,b)=>a-b).map(t=>{
+  const orderedTables=getTableOrder(balEv);
+  document.getElementById('tgrid').innerHTML=orderedTables.map(t=>{
     const tap=ap.filter(p=>p.table===t),cnt=tap.length;
     const isBig=cnt===mx&&diff>2&&ts.size>1,isSml=cnt===mn&&diff>2&&ts.size>1;
     const cls='tcard'+(isBig?' t-d':isSml?' t-w':'');
@@ -1180,8 +1196,41 @@ function renderBal(){
       if(movingP&&movingP.eventId===balEv)return`<div class="seat dp" onclick="doMove(${t},${s})"><div class="sn" style="font-size:13px;font-weight:700;color:var(--blue)">${s}</div><div class="dh">▶ 여기로</div></div>`;
       return`<div class="seat"><div class="sn" style="font-size:13px;font-weight:600;color:var(--tx2)">${s}</div></div>`;
     }).join('');
-    return`<div class="${cls}"><div class="tcard-h"><div class="tcard-num" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${String(t).padStart(2,'0')}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd">🚫${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
+    return`<div class="${cls}" draggable="true" data-table="${t}" ondragstart="dragTableStart(event,${t})" ondragover="dragTableOver(event)" ondrop="dragTableDrop(event,${t})" ondragend="dragTableEnd(event)"><div class="tcard-h"><div class="tcard-num" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${String(t).padStart(2,'0')}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd">🚫${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
   }).join('');
+}
+
+/* ── 테이블 드래그앤드롭 ── */
+let _dragFromTable=null;
+
+function dragTableStart(e,t){
+  _dragFromTable=t;
+  e.currentTarget.style.opacity='.4';
+  e.dataTransfer.effectAllowed='move';
+}
+function dragTableOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  e.currentTarget.style.outline='2px solid var(--blue)';
+}
+function dragTableDrop(e,toT){
+  e.preventDefault();
+  e.currentTarget.style.outline='';
+  if(_dragFromTable===null||_dragFromTable===toT)return;
+  if(!tableOrder[balEv])tableOrder[balEv]=getTableOrder(balEv);
+  const order=tableOrder[balEv];
+  const fromIdx=order.indexOf(_dragFromTable);
+  const toIdx=order.indexOf(toT);
+  if(fromIdx===-1||toIdx===-1)return;
+  order.splice(fromIdx,1);
+  order.splice(toIdx,0,_dragFromTable);
+  _dragFromTable=null;
+  save();renderBal();
+}
+function dragTableEnd(e){
+  e.currentTarget.style.opacity='';
+  e.currentTarget.style.outline='';
+  _dragFromTable=null;
 }
 
 function openAddTableModal(){
@@ -1282,6 +1331,7 @@ function doAddTableBalancing(){
     const p=ps.find(x=>x.id===m.pid);
     if(p){p.prevTable=p.table;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}
   });
+  registerTableOrder(balEv,newT);
   save();updateStats();renderBal();
   closeModal('addTableModal');
   if(moves.length>0){
