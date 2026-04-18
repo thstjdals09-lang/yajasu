@@ -527,7 +527,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
           <div id="manualTableLabel" style="font-size:11px;color:var(--tx3);margin-top:4px"></div>
         </div>
       </div>
-      <button class="btn btn-p btn-full" onclick="doReg()">강민혁 발작버튼</button>
+      <button class="btn btn-p btn-full" onclick="doReg()">손성민에게 후원하기</button>
       <div class="err" id="regErr"></div>
     </div>
     <div style="margin-top:20px" id="seatBlockWrap"></div>
@@ -1714,28 +1714,56 @@ function updateCmbPreview(){
   if(cmbSel.length<1){prev.innerHTML='';prev._moves=null;return;}
   const ap=ps.filter(p=>p.eventId===cmbEvId&&!p.busted);
   const max=getMax(cmbEvId);
-  const survivingTs=[...new Set(ap.map(p=>p.table))].filter(t=>!cmbSel.includes(t)).sort((a,b)=>a-b);
+  const blocked=getBlockedSeats(cmbEvId);
+  const survivingTs=[...new Set(ap.map(p=>p.table))].filter(t=>!cmbSel.includes(t));
   if(!survivingTs.length){prev.innerHTML='<div style="font-size:13px;color:var(--tx3);margin-top:8px">주의: 최소 1개 테이블은 남겨야 합니다.</div>';prev._moves=null;return;}
-  const moves=[],occupied={};
+
+  // 이동할 사람 목록
+  const toMove=[];
+  cmbSel.forEach(rt=>ap.filter(p=>p.table===rt).forEach(p=>toMove.push(p)));
+
+  // 각 테이블 현재 인원
+  const tm={};
+  survivingTs.forEach(t=>{tm[t]=ap.filter(p=>p.table===t).length;});
+  const occupied={};
   survivingTs.forEach(t=>{occupied[t]=ap.filter(p=>p.table===t).map(p=>p.seat);});
-  cmbSel.forEach(rt=>{
-    ap.filter(p=>p.table===rt).forEach(p=>{
-      let placed=false;
-      for(const kt of survivingTs){
-        if(!occupied[kt])occupied[kt]=[];
-        for(let s=1;s<=max;s++){
-          if(!occupied[kt].includes(s)&&!moves.find(m=>m.toTable===kt&&m.toSeat===s)){
-            moves.push({pid:p.id,name:p.name,fromTable:rt,toTable:kt,toSeat:s});
-            occupied[kt].push(s);placed=true;break;
-          }
-        }
-        if(placed)break;
+
+  const moves=[];
+  for(const p of toMove){
+    // 매번 가장 적은 인원 테이블로 배정 (균등 분배)
+    const sorted=[...survivingTs].sort((a,b)=>tm[a]-tm[b]);
+    let placed=false;
+    for(const kt of sorted){
+      const avail=[];
+      for(let s=1;s<=max;s++){
+        if(!occupied[kt].includes(s)&&!blocked.includes(s))avail.push(s);
       }
-    });
-  });
+      if(avail.length){
+        const seat=avail[Math.floor(Math.random()*avail.length)];
+        moves.push({pid:p.id,name:p.name,fromTable:p.table,toTable:kt,toSeat:seat});
+        occupied[kt].push(seat);
+        tm[kt]++;
+        placed=true;break;
+      }
+    }
+    if(!placed){
+      // 빈자리 없으면 아무 테이블이나
+      const kt=sorted[0];
+      const s=max+1;
+      moves.push({pid:p.id,name:p.name,fromTable:p.table,toTable:kt,toSeat:s});
+      tm[kt]++;
+    }
+  }
+
   prev._moves=moves;
-  const totalEmpty=survivingTs.reduce((sum,t)=>{const cnt=ap.filter(p=>p.table===t).length+moves.filter(m=>m.toTable===t).length;return sum+(MAX-cnt);},0);
-  prev.innerHTML=`<div class="stitle" style="margin-top:12px">이동 계획 (없어질 T: ${cmbSel.map(x=>'T'+x).join(', ')})</div>${totalEmpty>0?`<div style="font-size:12px;color:var(--blue);margin-bottom:8px">컨바인 후 남은 빈 자리 ${totalEmpty}석 (9맥스 기준)</div>`:''}<div class="mv-list">${moves.map(m=>`<div class="mv-row"><div class="mname">${m.name}</div><div class="mf">T${m.fromTable}</div><div style="color:var(--tx3)">→</div><div class="mt">T${m.toTable} / ${m.toSeat}번</div></div>`).join('')}</div>`;
+  const totalEmpty=survivingTs.reduce((sum,t)=>{
+    const cnt=ap.filter(p=>p.table===t).length+moves.filter(m=>m.toTable===t).length;
+    return sum+(max-cnt-blocked.filter(s=>s<=max).length);
+  },0);
+  prev.innerHTML=`<div class="stitle" style="margin-top:12px">이동 계획 (없어질 T: ${cmbSel.map(x=>'T'+x).join(', ')})</div>`+
+    `<div style="font-size:12px;color:var(--blue);margin-bottom:8px">`+
+    survivingTs.map(t=>`T${t}: ${ap.filter(p=>p.table===t).length}명 → ${ap.filter(p=>p.table===t).length+moves.filter(m=>m.toTable===t).length}명`).join(' / ')+
+    `</div><div class="mv-list">${moves.map(m=>`<div class="mv-row"><div class="mname">${m.name}</div><div class="mf">T${m.fromTable}</div><div style="color:var(--tx3)">→</div><div class="mt">T${m.toTable} / ${m.toSeat}번</div></div>`).join('')}</div>`;
 }
 
 function doCombine(){
