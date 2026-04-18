@@ -1263,7 +1263,7 @@ function renderBal(){
   }).join('');
 }
 
-/* ── 테이블 드래그앤드롭 (터치+마우스) ── */
+/* ── 테이블 드래그앤드롭 ── */
 let _dragFromTable=null;
 let _dragEl=null;
 let _ghost=null;
@@ -1275,40 +1275,65 @@ function dragTableStart(e,t){
   e.dataTransfer.effectAllowed='move';
 }
 
+function _getDragInsert(e){
+  const rect=e.currentTarget.getBoundingClientRect();
+  const tgrid=document.getElementById('tgrid');
+  const cols=getComputedStyle(tgrid).gridTemplateColumns.split(' ').length;
+  if(cols>1)return e.clientX<rect.left+rect.width/2?'before':'after';
+  else return e.clientY<rect.top+rect.height/2?'before':'after';
+}
+
 function dragTableOver(e){
   e.preventDefault();
   e.dataTransfer.dropEffect='move';
-  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
-  const rect=e.currentTarget.getBoundingClientRect();
-  if(e.clientX<rect.left+rect.width/2)e.currentTarget.style.borderLeft='3px solid var(--blue)';
-  else e.currentTarget.style.borderRight='3px solid var(--blue)';
+  document.querySelectorAll('.tcard').forEach(c=>{
+    c.style.borderTop='';c.style.borderBottom='';
+    c.style.borderLeft='';c.style.borderRight='';
+  });
+  const ins=_getDragInsert(e);
+  const tgrid=document.getElementById('tgrid');
+  const cols=getComputedStyle(tgrid).gridTemplateColumns.split(' ').length;
+  if(cols>1){
+    if(ins==='before')e.currentTarget.style.borderLeft='3px solid var(--blue)';
+    else e.currentTarget.style.borderRight='3px solid var(--blue)';
+  } else {
+    if(ins==='before')e.currentTarget.style.borderTop='3px solid var(--blue)';
+    else e.currentTarget.style.borderBottom='3px solid var(--blue)';
+  }
 }
 
 function dragTableLeave(e){
-  e.currentTarget.style.borderLeft='';
-  e.currentTarget.style.borderRight='';
+  e.currentTarget.style.borderTop='';e.currentTarget.style.borderBottom='';
+  e.currentTarget.style.borderLeft='';e.currentTarget.style.borderRight='';
 }
 
 function dragTableDrop(e,toT){
   e.preventDefault();
-  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
+  document.querySelectorAll('.tcard').forEach(c=>{
+    c.style.borderTop='';c.style.borderBottom='';
+    c.style.borderLeft='';c.style.borderRight='';
+  });
   if(_dragFromTable===null||_dragFromTable===toT){_dragFromTable=null;return;}
   if(!tableOrder[balEv])tableOrder[balEv]=getTableOrder(balEv);
   const order=tableOrder[balEv];
   const fromIdx=order.indexOf(_dragFromTable);
-  let toIdx=order.indexOf(toT);
+  const toIdx=order.indexOf(toT);
   if(fromIdx===-1||toIdx===-1){_dragFromTable=null;return;}
-  const rect=e.currentTarget.getBoundingClientRect();
-  if(e.clientX>=rect.left+rect.width/2&&toIdx<order.length-1)toIdx++;
-  order.splice(fromIdx,1);
-  order.splice(fromIdx<toIdx?toIdx-1:toIdx,0,_dragFromTable);
+  const ins=_getDragInsert(e);
+  // fromIdx 제거 후 toIdx 재계산
+  const item=order.splice(fromIdx,1)[0];
+  const newToIdx=order.indexOf(toT);
+  order.splice(ins==='before'?newToIdx:newToIdx+1,0,item);
   _dragFromTable=null;
   save();renderBal();
 }
 
 function dragTableEnd(e){
   if(_dragEl){_dragEl.style.opacity='';_dragEl=null;}
-  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
+  document.querySelectorAll('.tcard').forEach(c=>{
+    c.style.borderTop='';c.style.borderBottom='';
+    c.style.borderLeft='';c.style.borderRight='';
+  });
   _dragFromTable=null;
 }
 
@@ -1340,7 +1365,6 @@ function touchDragStart(e,t){
 function touchDragMove(e){
   const dx=Math.abs(e.touches[0].clientX-_touchStartX);
   const dy=Math.abs(e.touches[0].clientY-_touchStartY);
-  // 0.5초 안에 많이 움직이면 스크롤로 판단, 타이머 취소
   if(!_touchReady){
     if(dx>8||dy>8){clearTimeout(_touchTimer);_touchTimer=null;}
     return;
@@ -1351,15 +1375,25 @@ function touchDragMove(e){
   const w=parseInt(_ghost.style.width);
   _ghost.style.left=(touch.clientX-w/2)+'px';
   _ghost.style.top=(touch.clientY-40)+'px';
-  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
+  document.querySelectorAll('.tcard').forEach(c=>{
+    c.style.borderTop='';c.style.borderBottom='';
+    c.style.borderLeft='';c.style.borderRight='';
+  });
   _ghost.style.display='none';
   const el=document.elementFromPoint(touch.clientX,touch.clientY);
   _ghost.style.display='';
   const card=el?.closest('.tcard[data-table]');
   if(card&&parseInt(card.dataset.table)!==_dragFromTable){
+    const tgrid=document.getElementById('tgrid');
+    const cols=getComputedStyle(tgrid).gridTemplateColumns.split(' ').length;
     const rect=card.getBoundingClientRect();
-    if(touch.clientX<rect.left+rect.width/2)card.style.borderLeft='3px solid var(--blue)';
-    else card.style.borderRight='3px solid var(--blue)';
+    if(cols>1){
+      if(touch.clientX<rect.left+rect.width/2)card.style.borderLeft='3px solid var(--blue)';
+      else card.style.borderRight='3px solid var(--blue)';
+    } else {
+      if(touch.clientY<rect.top+rect.height/2)card.style.borderTop='3px solid var(--blue)';
+      else card.style.borderBottom='3px solid var(--blue)';
+    }
   }
 }
 
@@ -1368,7 +1402,10 @@ function touchDragEnd(e){
   if(!_touchReady){_touchReady=false;return;}
   _touchReady=false;
   const touch=e.changedTouches[0];
-  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
+  document.querySelectorAll('.tcard').forEach(c=>{
+    c.style.borderTop='';c.style.borderBottom='';
+    c.style.borderLeft='';c.style.borderRight='';
+  });
   if(_ghost){_ghost.remove();_ghost=null;}
   if(_dragEl){_dragEl.style.opacity='';_dragEl=null;}
   if(_dragFromTable===null)return;
@@ -1380,12 +1417,17 @@ function touchDragEnd(e){
   if(!tableOrder[balEv])tableOrder[balEv]=getTableOrder(balEv);
   const order=tableOrder[balEv];
   const fromIdx=order.indexOf(_dragFromTable);
-  let toIdx=order.indexOf(toT);
-  if(fromIdx===-1||toIdx===-1){_dragFromTable=null;return;}
+  if(fromIdx===-1){_dragFromTable=null;return;}
+  const tgrid=document.getElementById('tgrid');
+  const cols=getComputedStyle(tgrid).gridTemplateColumns.split(' ').length;
   const rect=card.getBoundingClientRect();
-  if(touch.clientX>=rect.left+rect.width/2&&toIdx<order.length-1)toIdx++;
-  order.splice(fromIdx,1);
-  order.splice(fromIdx<toIdx?toIdx-1:toIdx,0,_dragFromTable);
+  let ins;
+  if(cols>1)ins=touch.clientX<rect.left+rect.width/2?'before':'after';
+  else ins=touch.clientY<rect.top+rect.height/2?'before':'after';
+  const item=order.splice(fromIdx,1)[0];
+  const newToIdx=order.indexOf(toT);
+  if(newToIdx===-1){order.push(item);}
+  else order.splice(ins==='before'?newToIdx:newToIdx+1,0,item);
   _dragFromTable=null;
   save();renderBal();
 }
