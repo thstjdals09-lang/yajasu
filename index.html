@@ -523,7 +523,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
           <div id="manualTableLabel" style="font-size:11px;color:var(--tx3);margin-top:4px"></div>
         </div>
       </div>
-      <button class="btn btn-p btn-full" onclick="doReg()">강민혁이 발작버튼</button>
+      <button class="btn btn-p btn-full" onclick="doReg()">등록 + 출력</button>
       <div class="err" id="regErr"></div>
     </div>
     <div style="margin-top:20px" id="seatBlockWrap"></div>
@@ -785,7 +785,13 @@ let RC={
 /* ── 데이터 저장/불러오기 ── */
 
 function buildSaveData(){
-  return{evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,blockedSeats,tableOrder,RC};
+  const cleanPs=ps.map(p=>{
+    const obj={...p,time:p.time instanceof Date?p.time.toISOString():p.time};
+    // undefined 필드 제거 (JSON 직렬화 시 누락 방지)
+    Object.keys(obj).forEach(k=>{if(obj[k]===undefined)delete obj[k];});
+    return obj;
+  });
+  return{evs,nxEv,sources,ps:cleanPs,nxId,regClosed,regClosedAt,blockedSeats,tableOrder,RC};
 }
 
 function applyData(data){
@@ -1430,9 +1436,9 @@ function unBust(pid){
   p.table=p.bustedTable;
   p.seat=p.bustedSeat;
   p.busted=false;
-  p.bustedTable=undefined;
-  p.bustedSeat=undefined;
-  p.bustedAt=undefined;
+  delete p.bustedTable;
+  delete p.bustedSeat;
+  delete p.bustedAt;
   save();updateStats();renderBal();
   openBustList();
 }
