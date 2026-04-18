@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>싯카드없애기 프로젝트</title>
+<title>홀덤 토너먼트 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -56,6 +56,8 @@ onAuthStateChanged(auth,user=>{
   onValue(ref(db,'tournament'),snap=>{
     const data=snap.val();
     if(!data)return;
+    // 내가 방금 저장한 직후엔 Firebase 업데이트 무시 (1.5초)
+    if(window._localSaveTime&&Date.now()-window._localSaveTime<1500)return;
     if(window._appReady)window._loadFirebaseData(data);
     else window._pendingFbData=data;
   });
@@ -783,11 +785,12 @@ function save(){
     try{
       const data=buildSaveData();
       localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+      window._localSaveTime=Date.now();
       if(window._fbSave)window._fbSave(data);
       const el=document.getElementById('saveIndicator');
       if(el)el.innerHTML='<div class="save-dot"></div><span>저장됨</span>';
     }catch(e){console.error('save error',e);}
-  },500);
+  },300);
 }
 
 function load(){
@@ -1145,7 +1148,15 @@ function bust(pid){
   p.bustedTable=p.table;
   p.bustedSeat=p.seat;
   p.bustedAt=new Date().toISOString();
-  p.busted=true;save();updateStats();renderBal();
+  p.busted=true;
+  // 즉시 저장 (debounce 없이)
+  try{
+    const data=buildSaveData();
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    window._localSaveTime=Date.now();
+    if(window._fbSave)window._fbSave(data);
+  }catch(e){console.error('bust save error',e);}
+  updateStats();renderBal();
 }
 function startMove(pid){
   movingP=ps.find(x=>x.id===pid);if(!movingP)return;
@@ -1636,7 +1647,13 @@ function quickBustConfirm(){
   p.bustedSeat=p.seat;
   p.bustedAt=new Date().toISOString();
   p.busted=true;
-  save();updateStats();renderBal();
+  try{
+    const data=buildSaveData();
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    window._localSaveTime=Date.now();
+    if(window._fbSave)window._fbSave(data);
+  }catch(e){console.error('bust save error',e);}
+  updateStats();renderBal();
   closeModal('quickBustModal');
 }
 
