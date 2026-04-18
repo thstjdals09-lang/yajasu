@@ -246,14 +246,14 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .psec{margin-bottom:20px}
 .psec-h{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--bd);margin-bottom:6px;flex-wrap:wrap;gap:8px}
 .pt{font-size:13px;font-weight:700;color:var(--tx)}
-.prow{display:flex;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.prow{display:flex;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid var(--bd);flex-wrap:nowrap;overflow:hidden}
 .prow:last-child{border-bottom:none}
 .prow.po{opacity:.35}
 .prow.reentry{background:var(--purple-bg);border-radius:var(--r);padding:10px;margin-bottom:2px;border:none}
-.pcirc{width:28px;height:28px;border-radius:50%;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--tx2);flex-shrink:0;font-family:var(--mono)}
-.pn{flex:1;font-size:13px;font-weight:600;min-width:70px}
+.pcirc{width:26px;height:26px;border-radius:50%;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--tx2);flex-shrink:0;font-family:var(--mono)}
+.pn{flex:1;font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pnk{font-size:11px;color:var(--tx3);font-weight:400}
-.prow-btns{display:flex;gap:5px;flex-wrap:wrap}
+.prow-btns{display:flex;gap:5px;flex-shrink:0;align-items:center}
 
 /* 설정 */
 .ssec{margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--bd)}
@@ -329,21 +329,64 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 @media(max-width:768px){
   .sidebar{display:none}
   .bottom-nav{display:block}
-  .main{padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))}
-  .content{padding:12px}
-  .topbar{padding:12px 14px}
-  .tb-title{font-size:15px}
+  .main{padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))}
+  .content{padding:12px 12px}
+
+  /* 탑바 */
+  .topbar{padding:10px 12px;gap:6px;flex-wrap:nowrap;overflow:hidden}
+  .tb-title{font-size:14px;white-space:nowrap;flex-shrink:0}
+  .tb-right{gap:5px;flex-shrink:0;flex-wrap:nowrap}
+  .btn-sm{padding:7px 10px;font-size:11px;white-space:nowrap}
+  .btn-xs{padding:5px 8px;font-size:11px;white-space:nowrap}
+
+  /* 폼 */
   .fr2,.fr3{grid-template-columns:1fr}
+  .fr4{grid-template-columns:1fr 1fr}
+
+  /* 스탯 */
   .sg{grid-template-columns:repeat(2,1fr) !important}
+  .sc .v{font-size:20px}
+
+  /* 테이블 그리드 */
   .tgrid{grid-template-columns:1fr}
-  .tcard{padding:14px}
-  .seat{min-height:90px}
-  .seat.tk .nm{font-size:13px}
+  .tcard{padding:12px}
+  .sgrid{gap:6px}
+  .seat{min-height:80px}
+  .seat.tk .nm{font-size:12px}
+  .sa{gap:3px}
+  .sa .btn-xs{padding:4px 6px;font-size:10px}
+
+  /* 참가자 목록 */
+  .prow{padding:10px 2px;gap:6px}
+  .pn{font-size:12px}
+  .prow-btns{gap:4px}
+
+  /* 영수증 */
   .rc-canvas{grid-template-columns:1fr}
   .rc-preview{width:100%}
-  .btn-xs{padding:7px 11px;font-size:12px}
-  .sgrid{gap:8px}
+
+  /* Pills */
+  .epills{gap:6px}
+  .ep{padding:7px 12px;font-size:12px}
+
+  /* 배너 */
+  .banner{font-size:12px;padding:10px 12px}
+
+  /* 모달 */
+  .modal-b{padding:14px}
+  .modal-h{padding:12px 16px}
+  .modal-f{padding:10px 16px}
 }
+
+@media(max-width:380px){
+  .tb-right .btn-sm{padding:6px 8px;font-size:10px}
+  .topbar{padding:8px 10px}
+  .content{padding:10px}
+  .ep{padding:6px 10px;font-size:11px}
+  .sc .v{font-size:18px}
+  .sc .l{font-size:10px}
+}
+
 @media(min-width:769px){
   .modal-bg{align-items:center;padding:16px}
   .modal{border-radius:var(--rl);max-width:500px}
@@ -441,8 +484,8 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <div class="epills" id="regPills"></div>
     <div class="card" id="regFormCard">
       <div class="fr fr2" style="margin-bottom:10px">
-        <div class="fg"><label>이름</label><input id="nameIn" type="text" placeholder="참가자 이름" onkeydown="if(event.key==='Enter')doReg()"></div>
-        <div class="fg"><label>닉네임 (내부용)</label><input id="nickIn" type="text" placeholder="선택사항"></div>
+        <div class="fg"><label>이름</label><input id="nameIn" type="text" placeholder="참가자 이름" autocomplete="off" onkeydown="if(event.key==='Enter')doReg()"></div>
+        <div class="fg"><label>닉네임 <span style="font-weight:400;color:var(--tx3);font-size:10px">(내부용)</span></label><input id="nickIn" type="text" placeholder="선택사항" autocomplete="off"></div>
       </div>
       <div class="fr fr2" style="margin-bottom:10px">
         <div class="fg"><label>획득 경로</label><select id="srcIn"></select></div>
@@ -450,16 +493,14 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
           <label>자리 지정 <span style="font-weight:400;color:var(--tx3);font-size:10px">(비우면 자동)</span></label>
           <div style="display:flex;gap:6px;align-items:center">
             <input id="manualTable" type="number" min="1" placeholder="테이블" style="text-align:center;width:80px;flex-shrink:0" oninput="updateManualSeatSelect()">
-            <select id="manualSeat" style="flex:1">
-              <option value="">좌석 선택</option>
+            <select id="manualSeat" style="flex:1;min-width:0" disabled>
+              <option value="">— 테이블 먼저 —</option>
             </select>
           </div>
           <div id="manualTableLabel" style="font-size:11px;color:var(--tx3);margin-top:4px"></div>
         </div>
       </div>
-      <div class="fr" style="margin-bottom:12px">
-        <button class="btn btn-p btn-full" onclick="doReg()">등록 + 출력</button>
-      </div>
+      <button class="btn btn-p btn-full" onclick="doReg()">등록 + 출력</button>
       <div class="err" id="regErr"></div>
     </div>
     <div style="margin-top:20px" id="seatBlockWrap"></div>
@@ -468,17 +509,17 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
 <!-- 밸런싱 -->
 <div class="view" id="v-bal">
-  <div class="topbar">
-    <div class="tb-title">밸런싱</div>
-    <div class="tb-right">
-      <div class="srch-wrap" style="position:relative">
+  <div class="topbar" style="gap:8px">
+    <div class="tb-title" style="flex-shrink:0">밸런싱</div>
+    <div class="tb-right" style="flex:1;overflow-x:auto;justify-content:flex-end;flex-wrap:nowrap;-webkit-overflow-scrolling:touch">
+      <div class="srch-wrap" style="position:relative;flex-shrink:0">
         <svg class="srch-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="srchIn" placeholder="참가자 검색" style="width:160px;padding-left:34px" oninput="doSearch(this.value)">
+        <input type="text" id="srchIn" placeholder="참가자 검색" style="width:130px;padding-left:34px" oninput="doSearch(this.value)">
         <div class="search-result" id="srchResult"></div>
       </div>
-      <button class="btn btn-s btn-sm" onclick="openAddTableModal()">테이블추가+밸런싱</button>
-      <button class="btn btn-d btn-sm" onclick="openQuickBust()">⚡버스트</button>
-      <button class="btn btn-pu btn-sm" onclick="openCombine()">컨바인</button>
+      <button class="btn btn-s btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openAddTableModal()">+테이블</button>
+      <button class="btn btn-d btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openQuickBust()">⚡버스트</button>
+      <button class="btn btn-pu btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openCombine()">컨바인</button>
     </div>
   </div>
   <div class="content">
@@ -884,7 +925,7 @@ function pills(cid,cur,fn,showT){
     d.onclick=()=>fn(e.id);el.appendChild(d);
   });
 }
-function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();document.getElementById('manualTable').value='';document.getElementById('manualSeat').innerHTML='<option value="">좌석</option>';},true);}
+function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();document.getElementById('manualTable').value='';const s=document.getElementById('manualSeat');s.innerHTML='<option value="">— 테이블 먼저 —</option>';s.disabled=true;document.getElementById('manualTableLabel').textContent='';},true);}
 function balPills(){pills('balPills',balEv,id=>{balEv=id;cancelMove();renderBal();updateStats();},true);}
 function listPills(){pills('listPills',listEv,id=>{listEv=id;listPills();renderList();},true);}
 function refreshSrc(){const el=document.getElementById('srcIn');if(!el)return;el.innerHTML=sources.map(s=>`<option>${s}</option>`).join('');}
@@ -959,21 +1000,30 @@ function renderSeatBlock(){
 function updateManualSeatSelect(){
   const t=parseInt(document.getElementById('manualTable').value);
   const sel=document.getElementById('manualSeat');
+  const label=document.getElementById('manualTableLabel');
+
+  if(!t){
+    sel.innerHTML='<option value="">— 테이블 먼저 —</option>';
+    sel.disabled=true;
+    if(label){label.textContent='';label.style.color='var(--tx3)';}
+    return;
+  }
+
+  sel.disabled=false;
   sel.innerHTML='<option value="">좌석 선택</option>';
-  if(!t||!selEv)return;
+
+  if(!selEv)return;
   const max=getMax(selEv);
   const blocked=getBlockedSeats(selEv);
   const taken=ps.filter(p=>p.eventId===selEv&&p.table===t&&!p.busted).map(p=>p.seat);
-  const isNewTable=!ps.some(p=>p.eventId===selEv&&p.table===t&&!p.busted);
+  const isNewTable=taken.length===0;
 
-  // 새 테이블이면 안내 표시
-  const label=document.getElementById('manualTableLabel');
   if(label){
-    if(isNewTable&&taken.length===0){
-      label.textContent='(새 테이블 — 등록 시 자동 생성)';
+    if(isNewTable){
+      label.textContent='새 테이블 — 등록 시 자동 생성';
       label.style.color='var(--green)';
     } else {
-      label.textContent=`(${taken.length}명 착석 중)`;
+      label.textContent=`${taken.length}명 착석 중`;
       label.style.color='var(--tx3)';
     }
   }
@@ -991,7 +1041,7 @@ function updateManualSeatSelect(){
       opt.textContent=`${s}번 — 차단됨`;
       opt.style.cssText='color:#f59e0b;background:#2d1a00';
     } else {
-      opt.textContent=`${s}번`;
+      opt.textContent=`${s}번 — 빈자리`;
     }
     sel.appendChild(opt);
   }
@@ -1039,7 +1089,11 @@ function doReg(){
   document.getElementById('nameIn').value='';
   document.getElementById('nickIn').value='';
   document.getElementById('manualTable').value='';
-  document.getElementById('manualSeat').innerHTML='<option value="">좌석</option>';
+  const ms=document.getElementById('manualSeat');
+  ms.innerHTML='<option value="">— 테이블 먼저 —</option>';
+  ms.disabled=true;
+  const ml=document.getElementById('manualTableLabel');
+  if(ml)ml.textContent='';
   save();
   updateStats();
   renderSeatBlock();
@@ -1463,16 +1517,22 @@ function renderList(){
     const reentryInfo=evCfg?.reentryAllowed?(evCfg.reentryMax>0?` · 리엔트리 ${reentries}회 (최대 ${evCfg.reentryMax}회)`:(reentries?` · 리엔트리 ${reentries}회`:'')):'';
     return`<div class="psec"><div class="psec-h"><div class="pt">${ev.name} — 전체 ${tot}명 · 플레이 ${act}명${reentryInfo}</div><button class="btn btn-g btn-xs" onclick="downloadXlsx(${ev.id})">엑셀 다운로드</button></div>`+
       ev.list.map(p=>{
-        const reentryBadge=p.reentry?`<span class="badge b-pu" style="font-size:10px">${p.reentryCount||1}차 RE</span>`:'';
-        const statusBadge=p.busted
-          ?`<div style="display:flex;gap:5px;align-items:center"><span class="badge b-rd">버스트</span>${evCfg?.reentryAllowed?`<button class="btn btn-pu btn-xs" onclick="doReentry(${p.id})">리엔트리</button>`:''}</div>`
-          :`<span class="badge${p.moved?' b-gr':' b-gy'}">${p.moved?'이동됨 · ':''}T${p.table}—${p.seat}번</span>`;
+        const reentryBadge=p.reentry?`<span class="badge b-pu" style="font-size:10px;flex-shrink:0">${p.reentryCount||1}차RE</span>`:'';
+        const seatBadge=p.busted
+          ?`<span class="badge b-rd" style="flex-shrink:0">버스트</span>`
+          :`<span class="badge${p.moved?' b-gr':' b-gy'}" style="flex-shrink:0;white-space:nowrap">${p.moved?'이동·':''}T${p.table}-${p.seat}</span>`;
+        const actionBtns=p.busted
+          ?(evCfg?.reentryAllowed?`<button class="btn btn-pu btn-xs" onclick="doReentry(${p.id})">RE</button>`:'')
+          :`<button class="btn btn-d btn-xs" onclick="cancelReg(${p.id})">취소</button>`;
         return`<div class="prow${p.busted?' po':''}${p.reentry?' reentry':''}">
           <div class="pcirc">${p.num}</div>
-          <div class="pn">${p.name}${p.nick?` <span class="pnk">(${p.nick})</span>`:''}${reentryBadge}</div>
-          ${statusBadge}
-          <button class="btn btn-g btn-xs" onclick="showRegRc(ps.find(x=>x.id===${p.id}))">재출력</button>
-          ${!p.busted?`<button class="btn btn-d btn-xs" onclick="cancelReg(${p.id})">취소</button>`:''}
+          <div class="pn">${p.name}${p.nick?` <span class="pnk">(${p.nick})</span>`:''}</div>
+          ${reentryBadge}
+          ${seatBadge}
+          <div class="prow-btns">
+            <button class="btn btn-g btn-xs" onclick="showRegRc(ps.find(x=>x.id===${p.id}))">출력</button>
+            ${actionBtns}
+          </div>
         </div>`;
       }).join('')+`</div>`;
   }).join('');
