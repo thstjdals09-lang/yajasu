@@ -29,7 +29,14 @@ window._fbSave=function(data){
   clearTimeout(fbSyncTimer);
   fbSyncTimer=setTimeout(()=>{
     set(ref(db,'tournament'),data).catch(e=>console.error('fb sync',e));
-  },800);
+  },100);
+};
+
+// 즉시 저장 (연속 버스트 등 빠른 처리용)
+window._fbDirectSave=function(data){
+  if(!auth.currentUser)return;
+  clearTimeout(fbSyncTimer);
+  set(ref(db,'tournament'),data).catch(e=>console.error('fb direct sync',e));
 };
 
 // 메인 PC 인쇄 요청 큐에 추가
@@ -57,7 +64,7 @@ onAuthStateChanged(auth,user=>{
     const data=snap.val();
     if(!data)return;
     // 내가 방금 저장한 직후엔 Firebase 업데이트 무시 (1.5초)
-    if(window._localSaveTime&&Date.now()-window._localSaveTime<1500)return;
+    if(window._localSaveTime&&Date.now()-window._localSaveTime<500)return;
     if(window._appReady)window._loadFirebaseData(data);
     else window._pendingFbData=data;
   });
@@ -1149,12 +1156,12 @@ function bust(pid){
   p.bustedSeat=p.seat;
   p.bustedAt=new Date().toISOString();
   p.busted=true;
-  // 즉시 저장 (debounce 없이)
   try{
     const data=buildSaveData();
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
     window._localSaveTime=Date.now();
-    if(window._fbSave)window._fbSave(data);
+    if(window._fbDirectSave)window._fbDirectSave(data);
+    else if(window._fbSave)window._fbSave(data);
   }catch(e){console.error('bust save error',e);}
   updateStats();renderBal();
 }
@@ -1651,7 +1658,8 @@ function quickBustConfirm(){
     const data=buildSaveData();
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
     window._localSaveTime=Date.now();
-    if(window._fbSave)window._fbSave(data);
+    if(window._fbDirectSave)window._fbDirectSave(data);
+    else if(window._fbSave)window._fbSave(data);
   }catch(e){console.error('bust save error',e);}
   updateStats();renderBal();
   closeModal('quickBustModal');
