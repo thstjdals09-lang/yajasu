@@ -444,9 +444,20 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         <div class="fg"><label>이름</label><input id="nameIn" type="text" placeholder="참가자 이름" onkeydown="if(event.key==='Enter')doReg()"></div>
         <div class="fg"><label>닉네임 (내부용)</label><input id="nickIn" type="text" placeholder="선택사항"></div>
       </div>
-      <div class="fr fr2" style="margin-bottom:12px">
+      <div class="fr fr2" style="margin-bottom:10px">
         <div class="fg"><label>획득 경로</label><select id="srcIn"></select></div>
-        <div class="fg"><label style="visibility:hidden">.</label><button class="btn btn-p btn-full" onclick="doReg()">등록 + 출력</button></div>
+        <div class="fg">
+          <label>자리 지정 <span style="font-weight:400;color:var(--tx3);font-size:10px">(비우면 자동)</span></label>
+          <div style="display:flex;gap:6px">
+            <input id="manualTable" type="number" min="1" placeholder="테이블" style="text-align:center" oninput="updateManualSeatSelect()">
+            <select id="manualSeat" style="text-align:center">
+              <option value="">좌석</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="fr" style="margin-bottom:12px">
+        <button class="btn btn-p btn-full" onclick="doReg()">등록 + 출력</button>
       </div>
       <div class="err" id="regErr"></div>
     </div>
@@ -464,7 +475,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         <input type="text" id="srchIn" placeholder="참가자 검색" style="width:160px;padding-left:34px" oninput="doSearch(this.value)">
         <div class="search-result" id="srchResult"></div>
       </div>
-      <button class="btn btn-s btn-sm" onclick="openBalancing()">오픈밸런싱</button>
+      <button class="btn btn-s btn-sm" onclick="openAddTableModal()">테이블추가+밸런싱</button>
       <button class="btn btn-d btn-sm" onclick="openQuickBust()">⚡버스트</button>
       <button class="btn btn-pu btn-sm" onclick="openCombine()">컨바인</button>
     </div>
@@ -511,6 +522,29 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         </div>
       </div>
     </div>
+    <div class="modal-bg" id="addTableModal">
+      <div class="modal">
+        <div class="modal-h">
+          <h2>테이블 추가 + 오픈밸런싱</h2>
+          <button class="btn btn-g btn-xs" onclick="closeModal('addTableModal')">닫기</button>
+        </div>
+        <div class="modal-b">
+          <div style="font-size:13px;color:var(--tx2);margin-bottom:14px;line-height:1.7" id="atbInfo">이벤트를 먼저 선택하세요.</div>
+          <div class="fg" style="margin-bottom:14px">
+            <label>추가할 테이블 번호</label>
+            <input type="number" id="atbNewTable" min="1" placeholder="예: 11" style="font-size:16px;text-align:center;padding:12px" oninput="atbPreview()">
+          </div>
+          <div id="atbPreviewArea" style="background:var(--bg3);border-radius:var(--r);padding:12px;min-height:60px;font-size:13px;color:var(--tx3);margin-bottom:14px">
+            테이블 번호를 입력하면 이동 계획이 표시됩니다
+          </div>
+        </div>
+        <div class="modal-f">
+          <button class="btn btn-g btn-sm" onclick="closeModal('addTableModal')">취소</button>
+          <button class="btn btn-s btn-sm" id="atbConfirmBtn" onclick="doAddTableBalancing()" disabled style="opacity:.4">실행 + 출력</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-bg" id="combineModal">
       <div class="modal">
         <div class="modal-h"><h2>테이블 컨바인</h2><button class="btn btn-g btn-xs" onclick="closeModal('combineModal')">닫기</button></div>
@@ -849,7 +883,7 @@ function pills(cid,cur,fn,showT){
     d.onclick=()=>fn(e.id);el.appendChild(d);
   });
 }
-function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();},true);}
+function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();document.getElementById('manualTable').value='';document.getElementById('manualSeat').innerHTML='<option value="">좌석</option>';},true);}
 function balPills(){pills('balPills',balEv,id=>{balEv=id;cancelMove();renderBal();updateStats();},true);}
 function listPills(){pills('listPills',listEv,id=>{listEv=id;listPills();renderList();},true);}
 function refreshSrc(){const el=document.getElementById('srcIn');if(!el)return;el.innerHTML=sources.map(s=>`<option>${s}</option>`).join('');}
@@ -921,6 +955,25 @@ function renderSeatBlock(){
     </div>`;
 }
 
+function updateManualSeatSelect(){
+  const t=parseInt(document.getElementById('manualTable').value);
+  const sel=document.getElementById('manualSeat');
+  sel.innerHTML='<option value="">좌석</option>';
+  if(!t||!selEv)return;
+  const max=getMax(selEv);
+  const blocked=getBlockedSeats(selEv);
+  const taken=ps.filter(p=>p.eventId===selEv&&p.table===t&&!p.busted).map(p=>p.seat);
+  for(let s=1;s<=max;s++){
+    const isBlocked=blocked.includes(s);
+    const isTaken=taken.includes(s);
+    const opt=document.createElement('option');
+    opt.value=s;
+    opt.textContent=`${s}번${isTaken?' (점유)':''}${isBlocked?' (차단)':''}`;
+    if(isTaken||isBlocked)opt.style.color='var(--red)';
+    sel.appendChild(opt);
+  }
+}
+
 function doReg(){
   if(!selEv){document.getElementById('regErr').textContent='이벤트를 선택해주세요.';return;}
   if(regClosed[selEv]){alert('해당 이벤트의 레지가 마감되었습니다.');return;}
@@ -931,17 +984,36 @@ function doReg(){
   if(!name){err.textContent='이름을 입력해주세요.';return;}
   err.textContent='';
   const ev=evs.find(e=>e.id===selEv);
+
+  // 수동 자리 지정 확인
+  const manualTableVal=document.getElementById('manualTable').value;
+  const manualSeatVal=document.getElementById('manualSeat').value;
+  let table,seat;
+
+  if(manualTableVal&&manualSeatVal){
+    table=parseInt(manualTableVal);
+    seat=parseInt(manualSeatVal);
+    // 이미 사람이 있는지 확인
+    const existing=ps.find(p=>p.eventId===selEv&&p.table===table&&p.seat===seat&&!p.busted);
+    if(existing){
+      if(!confirm(`T${table} · ${seat}번석에 이미 "${existing.name}"이 있습니다.\n그래도 이 자리에 등록할까요?`))return;
+    }
+  } else {
+    const assigned=assignSeat(selEv);
+    table=assigned.table;
+    seat=assigned.seat;
+  }
+
   const num=ps.filter(p=>p.eventId===selEv).length+1;
-  const{table,seat}=assignSeat(selEv);
   const p={id:nxId++,name,nick,src,eventId:selEv,evName:ev.name,num,table,seat,busted:false,moved:false,prevTable:null,time:new Date(),reentry:false};
   ps.push(p);
   document.getElementById('nameIn').value='';
   document.getElementById('nickIn').value='';
-  // 먼저 저장하고 UI 업데이트 후 인쇄
+  document.getElementById('manualTable').value='';
+  document.getElementById('manualSeat').innerHTML='<option value="">좌석</option>';
   save();
   updateStats();
   renderSeatBlock();
-  // 인쇄는 약간 딜레이 후 실행 (저장 완료 보장)
   setTimeout(()=>showRegRc(p), 100);
 }
 
@@ -1044,6 +1116,112 @@ function renderBal(){
     }).join('');
     return`<div class="${cls}"><div class="tcard-h"><div class="tcard-num" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${String(t).padStart(2,'0')}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd">🚫${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
   }).join('');
+}
+
+function openAddTableModal(){
+  if(!balEv){alert('이벤트를 먼저 선택하세요.');return;}
+  const ap=ps.filter(p=>p.eventId===balEv&&!p.busted);
+  const ts=[...new Set(ap.map(p=>p.table))].sort((a,b)=>a-b);
+  const max=getMax(balEv);
+  const info=document.getElementById('atbInfo');
+  info.innerHTML=`현재 <b>${ts.length}개</b> 테이블 · <b>${ap.length}명</b> 플레이 중 · 테이블당 최대 <b>${max}명</b>`;
+  document.getElementById('atbNewTable').value='';
+  document.getElementById('atbPreviewArea').textContent='테이블 번호를 입력하면 이동 계획이 표시됩니다';
+  document.getElementById('atbConfirmBtn').disabled=true;
+  document.getElementById('atbConfirmBtn').style.opacity='.4';
+  openModal('addTableModal');
+}
+
+let _atbMoves=[];
+
+function atbPreview(){
+  const newT=parseInt(document.getElementById('atbNewTable').value);
+  const btn=document.getElementById('atbConfirmBtn');
+  const area=document.getElementById('atbPreviewArea');
+  _atbMoves=[];
+
+  if(!newT){area.textContent='테이블 번호를 입력하면 이동 계획이 표시됩니다';btn.disabled=true;btn.style.opacity='.4';return;}
+
+  const ap=ps.filter(p=>p.eventId===balEv&&!p.busted);
+  const ts=[...new Set(ap.map(p=>p.table))].sort((a,b)=>a-b);
+
+  if(ts.includes(newT)){
+    area.innerHTML=`<span style="color:var(--red)">T${newT}은 이미 존재합니다</span>`;
+    btn.disabled=true;btn.style.opacity='.4';return;
+  }
+
+  const max=getMax(balEv);
+  const total=ap.length;
+  const newTableCount=ts.length+1;
+  const targetAvg=Math.floor(total/newTableCount);
+  const extra=total%newTableCount; // extra개 테이블은 targetAvg+1명
+
+  // 현재 테이블별 인원
+  const tm={};ts.forEach(t=>{tm[t]=ap.filter(p=>p.table===t).length;});
+  tm[newT]=0;
+
+  // 최소 이동으로 균형 맞추기
+  // 각 테이블 목표: targetAvg or targetAvg+1
+  // 새 테이블에 targetAvg명 채우기
+  const allTables=[...ts,newT];
+  const targetMap={};
+  let extraLeft=extra;
+  allTables.forEach(t=>{
+    targetMap[t]=targetAvg+(extraLeft-->0?1:0);
+  });
+
+  const blocked=getBlockedSeats(balEv);
+  const moves=[];
+  const movedSeats={};
+  allTables.forEach(t=>{movedSeats[t]=ap.filter(p=>p.table===t).map(p=>p.seat);});
+
+  // 많은 테이블에서 새/적은 테이블로 이동
+  for(const fromT of [...ts].sort((a,b)=>tm[b]-tm[a])){
+    while(tm[fromT]>targetMap[fromT]){
+      // 가장 적은 테이블
+      const toT=allTables.slice().sort((a,b)=>tm[a]-tm[b])[0];
+      if(toT===fromT||tm[toT]>=targetMap[toT])break;
+      const candidates=ap.filter(p=>p.table===fromT&&!moves.find(m=>m.pid===p.id));
+      if(!candidates.length)break;
+      const person=candidates[candidates.length-1];
+      const taken=movedSeats[toT]||[];
+      const avail=[];
+      for(let s=1;s<=max;s++)if(!taken.includes(s)&&!blocked.includes(s))avail.push(s);
+      if(!avail.length)break;
+      const seat=avail[Math.floor(Math.random()*avail.length)];
+      moves.push({pid:person.id,name:person.name,fromTable:fromT,toTable:toT,toSeat:seat});
+      movedSeats[toT]=[...(movedSeats[toT]||[]),seat];
+      tm[fromT]--;tm[toT]++;
+    }
+  }
+
+  _atbMoves=moves;
+
+  if(!moves.length){
+    area.innerHTML=`<span style="color:var(--green)">이동 없이 T${newT} 추가 후 자연스럽게 균형이 맞습니다</span>`;
+    btn.disabled=false;btn.style.opacity='1';return;
+  }
+
+  area.innerHTML=`<div style="color:var(--blue);font-weight:600;margin-bottom:8px">총 ${moves.length}명 이동 계획</div>`+
+    moves.map(m=>`<div style="padding:4px 0;border-bottom:1px solid var(--bd);font-size:12px"><span style="color:var(--tx2)">${m.name}</span> <span style="color:var(--tx3)">T${m.fromTable}</span> → <span style="color:var(--green);font-weight:600">T${m.toTable} · ${m.toSeat}번</span></div>`).join('');
+  btn.disabled=false;btn.style.opacity='1';
+}
+
+function doAddTableBalancing(){
+  const newT=parseInt(document.getElementById('atbNewTable').value);
+  if(!newT)return;
+  const moves=_atbMoves;
+  if(!confirm(`T${newT} 추가 후 ${moves.length}명 이동 처리할까요?`))return;
+  moves.forEach(m=>{
+    const p=ps.find(x=>x.id===m.pid);
+    if(p){p.prevTable=p.table;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}
+  });
+  save();updateStats();renderBal();
+  closeModal('addTableModal');
+  if(moves.length>0){
+    const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable})).filter(x=>x.p);
+    showMoveRc(items);
+  }
 }
 
 function openBalancing(){
@@ -1245,9 +1423,10 @@ function doCombine(){
 function renderList(){
   const el=document.getElementById('listWrap');
   if(!ps.length){el.innerHTML='<div class="empty">등록된 참가자 없음</div>';return;}
-  const filtered=listEv?ps.filter(p=>p.eventId===listEv):ps;
-  if(!filtered.length){el.innerHTML='<div class="empty">해당 이벤트의 참가자가 없습니다</div>';return;}
-  const byEv={};filtered.forEach(p=>{if(!byEv[p.eventId])byEv[p.eventId]={name:p.evName,id:p.eventId,list:[]};byEv[p.eventId].list.push(p);});
+  const filtered=listEv?ps.filter(p=>p.eventId===listEv):[...ps];
+  if(!filtered.length){el.innerHTML='<div class="empty">등록된 참가자 없음</div>';return;}
+  // 최신 등록순 (역순)
+  const byEv={};[...filtered].reverse().forEach(p=>{if(!byEv[p.eventId])byEv[p.eventId]={name:p.evName,id:p.eventId,list:[]};byEv[p.eventId].list.push(p);});
   el.innerHTML=Object.values(byEv).map(ev=>{
     const tot=ev.list.length,act=ev.list.filter(p=>!p.busted).length;
     const reentries=ev.list.filter(p=>p.reentry).length;
@@ -1473,7 +1652,8 @@ function renderEvList(){
         <div class="fg"><label>시작 테이블 번호</label><input type="number" min="1" value="${e.startT||1}" onchange="evs.find(x=>x.id===${e.id}).startT=parseInt(this.value)||1;save();renderEvList();regPills()"></div>
         <div class="fg"><label>사용 안 할 테이블 번호 <span style="font-weight:400;color:var(--tx3)">(예: 6, 13, 20-22)</span></label>
           <input type="text" value="${tableListToStr(e.excludedTables||[])}" placeholder="예: 6, 13, 20-22"
-            oninput="(function(v){const ev=evs.find(x=>x.id===${e.id});ev.excludedTables=v.trim()?parseTableInput(v):[];save();renderEvList();})(this.value)">
+            onblur="(function(v){const ev=evs.find(x=>x.id===${e.id});ev.excludedTables=v.trim()?parseTableInput(v):[];save();renderEvList();})(this.value)"
+            onkeydown="if(event.key==='Enter'){(function(v){const ev=evs.find(x=>x.id===${e.id});ev.excludedTables=v.trim()?parseTableInput(v):[];save();renderEvList();})(this.value);this.blur();}">
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:4px"><button class="btn btn-d btn-xs" onclick="delEv(${e.id})">삭제</button></div>
