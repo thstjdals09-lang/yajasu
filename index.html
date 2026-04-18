@@ -304,7 +304,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .mv-row .mname{flex:1;font-weight:600}
 
 /* 하단 네비 (모바일) */
-.bottom-nav{display:none;background:var(--bg2);border-top:1.5px solid var(--bd);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom,0px)}
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1.5px solid var(--bd);z-index:50;padding-bottom:env(safe-area-inset-bottom,0px)}
 .bn-inner{display:flex}
 .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;color:var(--tx3);cursor:pointer;gap:3px;user-select:none;min-height:54px}
 .bn-item.on{color:var(--blue)}
@@ -329,6 +329,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 @media(max-width:768px){
   .sidebar{display:none}
   .bottom-nav{display:block}
+  .main{padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))}
   .content{padding:12px}
   .topbar{padding:12px 14px}
   .tb-title{font-size:15px}
