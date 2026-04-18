@@ -355,6 +355,10 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .divider{height:1px;background:var(--bd);margin:14px 0}
 .empty{text-align:center;padding:3rem 1rem;color:var(--tx3);font-size:13px}
 .stitle{font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.qb-item{padding:14px;text-align:center;font-size:16px;font-weight:600;font-family:var(--mono);cursor:pointer;border-bottom:1px solid var(--bd);color:var(--tx2);scroll-snap-align:start;transition:all .1s}
+.qb-item:last-child{border-bottom:none}
+.qb-item:active{background:var(--bg4)}
+.qb-item.on{background:var(--red-bg);color:var(--red);border-color:var(--red-d)}
 </style>
 </head>
 <body>
@@ -460,6 +464,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         <div class="search-result" id="srchResult"></div>
       </div>
       <button class="btn btn-s btn-sm" onclick="openBalancing()">오픈밸런싱</button>
+      <button class="btn btn-d btn-sm" onclick="openQuickBust()">⚡버스트</button>
       <button class="btn btn-pu btn-sm" onclick="openCombine()">컨바인</button>
     </div>
   </div>
@@ -479,7 +484,32 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       <div class="sc"><div class="l">균형</div><div class="v" id="bStat" style="font-size:14px">—</div></div>
     </div>
     <div class="tgrid" id="tgrid"></div>
-    <div class="modal-bg" id="combineModal">
+
+    <!-- 빠른 버스트 패널 -->
+    <div class="modal-bg" id="quickBustModal">
+      <div class="modal">
+        <div class="modal-h">
+          <h2>⚡ 빠른 버스트</h2>
+          <button class="btn btn-g btn-xs" onclick="closeModal('quickBustModal')">닫기</button>
+        </div>
+        <div class="modal-b">
+          <div class="fr fr2" style="margin-bottom:14px;gap:16px">
+            <div class="fg">
+              <label style="text-align:center;display:block;margin-bottom:8px">테이블 번호</label>
+              <div id="qbTableScroll" style="height:180px;overflow-y:auto;border:1.5px solid var(--bd2);border-radius:var(--r);scroll-snap-type:y mandatory"></div>
+            </div>
+            <div class="fg">
+              <label style="text-align:center;display:block;margin-bottom:8px">좌석 번호</label>
+              <div id="qbSeatScroll" style="height:180px;overflow-y:auto;border:1.5px solid var(--bd2);border-radius:var(--r);scroll-snap-type:y mandatory"></div>
+            </div>
+          </div>
+          <div id="qbResult" style="min-height:56px;margin-bottom:14px;padding:12px;background:var(--bg3);border-radius:var(--r);font-size:14px;color:var(--tx3);text-align:center">
+            테이블·좌석을 선택하세요
+          </div>
+          <button class="btn btn-d btn-full" id="qbConfirmBtn" onclick="quickBustConfirm()" disabled style="opacity:.4">버스트 처리</button>
+        </div>
+      </div>
+    </div>
       <div class="modal">
         <div class="modal-h"><h2>테이블 컨바인</h2><button class="btn btn-g btn-xs" onclick="closeModal('combineModal')">닫기</button></div>
         <div class="modal-b">
@@ -1071,6 +1101,77 @@ function openBalancing(){
   save();updateStats();renderBal();
   const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable})).filter(x=>x.p);
   showMoveRc(items);
+}
+
+let qbSelTable=null,qbSelSeat=null;
+
+function openQuickBust(){
+  if(!balEv){alert('이벤트를 먼저 선택하세요.');return;}
+  qbSelTable=null;qbSelSeat=null;
+  document.getElementById('qbResult').textContent='테이블·좌석을 선택하세요';
+  document.getElementById('qbResult').style.color='var(--tx3)';
+  document.getElementById('qbConfirmBtn').disabled=true;
+  document.getElementById('qbConfirmBtn').style.opacity='.4';
+
+  // 현재 이벤트의 활성 테이블 목록
+  const ap=ps.filter(p=>p.eventId===balEv&&!p.busted);
+  const tables=[...new Set(ap.map(p=>p.table))].sort((a,b)=>a-b);
+  const max=getMax(balEv);
+
+  // 테이블 스크롤
+  const ts=document.getElementById('qbTableScroll');
+  ts.innerHTML=tables.map(t=>`
+    <div class="qb-item" data-val="${t}" onclick="qbPickTable(${t},this)">T${String(t).padStart(2,'0')}</div>
+  `).join('');
+
+  // 좌석 스크롤
+  const ss=document.getElementById('qbSeatScroll');
+  ss.innerHTML=Array.from({length:max},(_,i)=>i+1).map(s=>`
+    <div class="qb-item" data-val="${s}" onclick="qbPickSeat(${s},this)">${s}번</div>
+  `).join('');
+
+  openModal('quickBustModal');
+}
+
+function qbPickTable(t,el){
+  qbSelTable=t;
+  document.querySelectorAll('#qbTableScroll .qb-item').forEach(e=>e.classList.remove('on'));
+  el.classList.add('on');
+  quickBustLookup();
+}
+function qbPickSeat(s,el){
+  qbSelSeat=s;
+  document.querySelectorAll('#qbSeatScroll .qb-item').forEach(e=>e.classList.remove('on'));
+  el.classList.add('on');
+  quickBustLookup();
+}
+
+function quickBustLookup(){
+  const res=document.getElementById('qbResult');
+  const btn=document.getElementById('qbConfirmBtn');
+  if(!qbSelTable||!qbSelSeat){
+    res.textContent='테이블·좌석을 선택하세요';
+    res.style.color='var(--tx3)';
+    btn.disabled=true;btn.style.opacity='.4';
+    return;
+  }
+  const p=ps.find(x=>x.eventId===balEv&&x.table===qbSelTable&&x.seat===qbSelSeat&&!x.busted);
+  if(!p){
+    res.innerHTML=`<span style="color:var(--red)">T${qbSelTable} · ${qbSelSeat}번석 — 참가자 없음</span>`;
+    btn.disabled=true;btn.style.opacity='.4';
+  }else{
+    res.innerHTML=`<div style="color:var(--tx);font-weight:700;font-size:18px">${p.name}</div><div style="color:var(--tx3);font-size:12px;margin-top:4px">T${qbSelTable} · ${qbSelSeat}번석 · #${p.num}</div>`;
+    btn.disabled=false;btn.style.opacity='1';
+  }
+}
+
+function quickBustConfirm(){
+  const p=ps.find(x=>x.eventId===balEv&&x.table===qbSelTable&&x.seat===qbSelSeat&&!x.busted);
+  if(!p)return;
+  if(!confirm(`"${p.name}" (T${qbSelTable}·${qbSelSeat}번석) 버스트 처리할까요?`))return;
+  p.busted=true;
+  save();updateStats();renderBal();
+  closeModal('quickBustModal');
 }
 
 function openCombine(){
