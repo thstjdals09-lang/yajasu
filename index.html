@@ -23,36 +23,27 @@ const app=initializeApp({
 const auth=getAuth(app);
 const db=getDatabase(app);
 
-const _deviceId=Math.random().toString(36).slice(2);
-let fbSyncTimer=null;
-let _lastSavedHash=null;
+// 이 기기 고유 ID (내 저장 구분용)
+const MY_ID=Math.random().toString(36).slice(2)+Date.now();
+let _isSaving=false;
 
+// 즉시 Firebase 저장
 window._fbSave=function(data){
   if(!auth.currentUser)return;
-  // deviceId 포함해서 저장 (내 저장인지 구분용)
-  const payload={...data,_deviceId,_ts:Date.now()};
-  clearTimeout(fbSyncTimer);
-  fbSyncTimer=setTimeout(()=>{
-    set(ref(db,'tournament'),payload).catch(e=>console.error('fb sync',e));
-  },50);
+  _isSaving=true;
+  const payload={...data,_sid:MY_ID};
+  set(ref(db,'tournament'),payload)
+    .then(()=>{_isSaving=false;})
+    .catch(e=>{_isSaving=false;console.error('fb save error',e);});
 };
 
-window._fbDirectSave=function(data){
-  if(!auth.currentUser)return;
-  clearTimeout(fbSyncTimer);
-  const payload={...data,_deviceId,_ts:Date.now()};
-  set(ref(db,'tournament'),payload).catch(e=>console.error('fb direct sync',e));
-};
-
-// 메인 PC 인쇄 요청 큐에 추가
+// 인쇄 요청
 window._fbPrintRequest=function(htmlPages,label){
   if(!auth.currentUser)return;
   push(ref(db,'printQueue'),{
-    html:htmlPages,
-    label:label||'영수증',
+    html:htmlPages,label:label||'영수증',
     requestedBy:auth.currentUser.email,
-    requestedAt:Date.now(),
-    status:'pending'
+    requestedAt:Date.now(),status:'pending'
   }).catch(e=>console.error('print queue error',e));
 };
 
@@ -66,19 +57,13 @@ onAuthStateChanged(auth,user=>{
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='block';
   document.getElementById('userEmailLabel').textContent=user.email;
-  let _firstLoad=true;
+
   onValue(ref(db,'tournament'),snap=>{
     const data=snap.val();
     if(!data)return;
-    // 첫 로드는 무조건 적용 (새로고침 후 최신 데이터 복원)
-    if(_firstLoad){
-      _firstLoad=false;
-      if(window._appReady)window._loadFirebaseData(data);
-      else window._pendingFbData=data;
-      return;
-    }
-    // 이후엔 내 기기 저장은 무시, 다른 기기 저장만 반영
-    if(data._deviceId===_deviceId)return;
+    // 내가 방금 저장한 거면 무시 (내 화면은 이미 반영됨)
+    if(data._sid===MY_ID)return;
+    // 다른 기기 저장 → 즉시 반영
     if(window._appReady)window._loadFirebaseData(data);
     else window._pendingFbData=data;
   });
@@ -788,7 +773,6 @@ let RC={
 };
 
 /* ── 데이터 저장/불러오기 ── */
-let saveTimer=null;
 
 function buildSaveData(){
   return{evs,nxEv,sources,ps:ps.map(p=>({...p,time:p.time instanceof Date?p.time.toISOString():p.time})),nxId,regClosed,regClosedAt,blockedSeats,tableOrder,RC};
@@ -811,10 +795,7 @@ function save(){
   try{
     const data=buildSaveData();
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
-    window._lastSaveTs=Date.now();
     if(window._fbSave)window._fbSave(data);
-    const el=document.getElementById('saveIndicator');
-    if(el)el.innerHTML='<div class="save-dot"></div><span>저장됨</span>';
   }catch(e){console.error('save error',e);}
 }
 
@@ -828,9 +809,18 @@ function load(){
 
 window._loadFirebaseData=function(data){
   applyData(data);
-  regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
+  // 전체 UI 업데이트
+  regPills();balPills();listPills();
+  refreshSrc();updateStats();updateRegUI();
+  renderSeatBlock();
+  // 현재 열려있는 탭에 맞게 렌더링
   const active=document.querySelector('.view.on');
-  if(active){const id=active.id;if(id==='v-bal')renderBal();if(id==='v-list'){listPills();renderList();}}
+  if(active){
+    const id=active.id;
+    if(id==='v-bal')renderBal();
+    else if(id==='v-list')renderList();
+    else if(id==='v-reg')renderSeatBlock();
+  }
 };
 
 window._appReady=false;
