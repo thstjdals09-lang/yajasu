@@ -517,6 +517,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       </div>
       <button class="btn btn-s btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openAddTableModal()">+테이블</button>
       <button class="btn btn-d btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openQuickBust()">⚡버스트</button>
+      <button class="btn btn-g btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openBustList()">버스트목록</button>
       <button class="btn btn-pu btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openCombine()">컨바인</button>
     </div>
   </div>
@@ -562,6 +563,16 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         </div>
       </div>
     </div>
+    <div class="modal-bg" id="bustListModal">
+      <div class="modal">
+        <div class="modal-h">
+          <h2>버스트 아웃 목록</h2>
+          <button class="btn btn-g btn-xs" onclick="closeModal('bustListModal')">닫기</button>
+        </div>
+        <div class="modal-b" id="bustListBody" style="padding:0;max-height:60dvh;overflow-y:auto"></div>
+      </div>
+    </div>
+
     <div class="modal-bg" id="addTableModal">
       <div class="modal">
         <div class="modal-h">
@@ -1131,6 +1142,9 @@ function doReentry(pid){
 function bust(pid){
   const p=ps.find(x=>x.id===pid);if(!p||p.busted)return;
   if(!confirm(`"${p.name}" 버스트 처리할까요?`))return;
+  p.bustedTable=p.table;
+  p.bustedSeat=p.seat;
+  p.bustedAt=new Date().toISOString();
   p.busted=true;save();updateStats();renderBal();
 }
 function startMove(pid){
@@ -1201,35 +1215,29 @@ function renderBal(){
       if(movingP&&movingP.eventId===balEv)return`<div class="seat dp" onclick="doMove(${t},${s})"><div class="sn" style="font-size:13px;font-weight:700;color:var(--blue)">${s}</div><div class="dh">▶ 여기로</div></div>`;
       return`<div class="seat"><div class="sn" style="font-size:13px;font-weight:600;color:var(--tx2)">${s}</div></div>`;
     }).join('');
-    return`<div class="${cls}" draggable="true" data-table="${t}" ondragstart="dragTableStart(event,${t})" ondragover="dragTableOver(event)" ondragleave="dragTableLeave(event)" ondrop="dragTableDrop(event,${t})" ondragend="dragTableEnd(event)"><div class="tcard-h"><div class="tcard-num" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${String(t).padStart(2,'0')}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd">🚫${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
+    return`<div class="${cls}" draggable="true" data-table="${t}" ondragstart="dragTableStart(event,${t})" ondragover="dragTableOver(event)" ondragleave="dragTableLeave(event)" ondrop="dragTableDrop(event,${t})" ondragend="dragTableEnd(event)" ontouchstart="touchDragStart(event,${t})" ontouchmove="touchDragMove(event)" ontouchend="touchDragEnd(event)"><div class="tcard-h"><div class="tcard-num" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${String(t).padStart(2,'0')}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd">🚫${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
   }).join('');
 }
 
-/* ── 테이블 드래그앤드롭 ── */
+/* ── 테이블 드래그앤드롭 (터치+마우스) ── */
 let _dragFromTable=null;
+let _dragEl=null;
+let _ghost=null;
 
 function dragTableStart(e,t){
   _dragFromTable=t;
-  setTimeout(()=>e.currentTarget.style.opacity='.3',0);
+  _dragEl=e.currentTarget;
+  setTimeout(()=>{if(_dragEl)_dragEl.style.opacity='.3';},0);
   e.dataTransfer.effectAllowed='move';
 }
 
 function dragTableOver(e){
   e.preventDefault();
   e.dataTransfer.dropEffect='move';
-  // 모든 카드에서 indicator 제거
-  document.querySelectorAll('.tcard').forEach(c=>{
-    c.style.borderLeft='';
-    c.style.borderRight='';
-  });
-  // 현재 카드 앞에 삽입 표시
+  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
   const rect=e.currentTarget.getBoundingClientRect();
-  const mid=rect.left+rect.width/2;
-  if(e.clientX<mid){
-    e.currentTarget.style.borderLeft='3px solid var(--blue)';
-  } else {
-    e.currentTarget.style.borderRight='3px solid var(--blue)';
-  }
+  if(e.clientX<rect.left+rect.width/2)e.currentTarget.style.borderLeft='3px solid var(--blue)';
+  else e.currentTarget.style.borderRight='3px solid var(--blue)';
 }
 
 function dragTableLeave(e){
@@ -1239,22 +1247,15 @@ function dragTableLeave(e){
 
 function dragTableDrop(e,toT){
   e.preventDefault();
-  document.querySelectorAll('.tcard').forEach(c=>{
-    c.style.borderLeft='';
-    c.style.borderRight='';
-  });
+  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
   if(_dragFromTable===null||_dragFromTable===toT){_dragFromTable=null;return;}
   if(!tableOrder[balEv])tableOrder[balEv]=getTableOrder(balEv);
   const order=tableOrder[balEv];
   const fromIdx=order.indexOf(_dragFromTable);
   let toIdx=order.indexOf(toT);
   if(fromIdx===-1||toIdx===-1){_dragFromTable=null;return;}
-
-  // 마우스 위치에 따라 앞/뒤 결정
   const rect=e.currentTarget.getBoundingClientRect();
-  const mid=rect.left+rect.width/2;
-  if(e.clientX>=mid&&toIdx<order.length-1)toIdx++;
-
+  if(e.clientX>=rect.left+rect.width/2&&toIdx<order.length-1)toIdx++;
   order.splice(fromIdx,1);
   order.splice(fromIdx<toIdx?toIdx-1:toIdx,0,_dragFromTable);
   _dragFromTable=null;
@@ -1262,12 +1263,121 @@ function dragTableDrop(e,toT){
 }
 
 function dragTableEnd(e){
-  e.currentTarget.style.opacity='';
-  document.querySelectorAll('.tcard').forEach(c=>{
-    c.style.borderLeft='';
-    c.style.borderRight='';
-  });
+  if(_dragEl){_dragEl.style.opacity='';_dragEl=null;}
+  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
   _dragFromTable=null;
+}
+
+// ── 터치 드래그앤드롭 ──
+function touchDragStart(e,t){
+  e.stopPropagation();
+  _dragFromTable=t;
+  _dragEl=e.currentTarget;
+  _dragEl.style.opacity='.3';
+  const rect=_dragEl.getBoundingClientRect();
+  _ghost=_dragEl.cloneNode(true);
+  _ghost.style.cssText=`position:fixed;pointer-events:none;z-index:9999;opacity:.7;width:${rect.width}px;transform:scale(1.05);transition:none;left:${rect.left}px;top:${rect.top}px;box-shadow:0 8px 24px rgba(0,0,0,.5)`;
+  document.body.appendChild(_ghost);
+}
+
+function touchDragMove(e){
+  if(_dragFromTable===null||!_ghost)return;
+  e.preventDefault();
+  const touch=e.touches[0];
+  const w=parseInt(_ghost.style.width);
+  _ghost.style.left=(touch.clientX-w/2)+'px';
+  _ghost.style.top=(touch.clientY-30)+'px';
+  // 아래 있는 카드 찾기
+  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
+  _ghost.style.display='none';
+  const el=document.elementFromPoint(touch.clientX,touch.clientY);
+  _ghost.style.display='';
+  const card=el?.closest('.tcard[data-table]');
+  if(card&&parseInt(card.dataset.table)!==_dragFromTable){
+    const rect=card.getBoundingClientRect();
+    if(touch.clientX<rect.left+rect.width/2)card.style.borderLeft='3px solid var(--blue)';
+    else card.style.borderRight='3px solid var(--blue)';
+  }
+}
+
+function touchDragEnd(e){
+  if(_dragFromTable===null)return;
+  const touch=e.changedTouches[0];
+  document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
+  if(_ghost){_ghost.remove();_ghost=null;}
+  if(_dragEl){_dragEl.style.opacity='';_dragEl=null;}
+  _ghost=null;
+  // 드롭 대상 찾기
+  const el=document.elementFromPoint(touch.clientX,touch.clientY);
+  const card=el?.closest('.tcard[data-table]');
+  if(!card){_dragFromTable=null;return;}
+  const toT=parseInt(card.dataset.table);
+  if(toT===_dragFromTable){_dragFromTable=null;return;}
+  if(!tableOrder[balEv])tableOrder[balEv]=getTableOrder(balEv);
+  const order=tableOrder[balEv];
+  const fromIdx=order.indexOf(_dragFromTable);
+  let toIdx=order.indexOf(toT);
+  if(fromIdx===-1||toIdx===-1){_dragFromTable=null;return;}
+  const rect=card.getBoundingClientRect();
+  if(touch.clientX>=rect.left+rect.width/2&&toIdx<order.length-1)toIdx++;
+  order.splice(fromIdx,1);
+  order.splice(fromIdx<toIdx?toIdx-1:toIdx,0,_dragFromTable);
+  _dragFromTable=null;
+  save();renderBal();
+}
+
+function openBustList(){
+  if(!balEv){alert('이벤트를 먼저 선택하세요.');return;}
+  const busted=ps.filter(p=>p.eventId===balEv&&p.busted);
+  const body=document.getElementById('bustListBody');
+  if(!busted.length){
+    body.innerHTML='<div class="empty">버스트된 참가자 없음</div>';
+    openModal('bustListModal');return;
+  }
+  // 최신 버스트 순으로
+  const sorted=[...busted].sort((a,b)=>{
+    const ta=a.bustedAt?new Date(a.bustedAt):new Date(0);
+    const tb=b.bustedAt?new Date(b.bustedAt):new Date(0);
+    return tb-ta;
+  });
+  body.innerHTML=sorted.map(p=>{
+    const pad=n=>String(n).padStart(2,'0');
+    const at=p.bustedAt?new Date(p.bustedAt):null;
+    const timeStr=at?`${pad(at.getHours())}:${pad(at.getMinutes())}`:'';
+    const tableStr=p.bustedTable?`T${p.bustedTable} · ${p.bustedSeat}번석`:'위치 미상';
+    // 현재 자리가 비어있는지 확인 (취소 가능 여부)
+    const canUnbust=p.bustedTable&&!ps.some(x=>x.eventId===balEv&&x.table===p.bustedTable&&x.seat===p.bustedSeat&&!x.busted);
+    return`<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--bd)">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--red-bg);border:1px solid var(--red-d);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--red);flex-shrink:0;font-family:var(--mono)">${p.num}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}${p.nick?` <span style="font-size:11px;color:var(--tx3);font-weight:400">(${p.nick})</span>`:''}</div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:2px">${tableStr}${timeStr?' · '+timeStr+' 아웃':''}</div>
+      </div>
+      ${canUnbust
+        ?`<button class="btn btn-s btn-xs" style="flex-shrink:0" onclick="unBust(${p.id})">취소</button>`
+        :`<span style="font-size:11px;color:var(--tx3);flex-shrink:0">${p.bustedTable?'자리 점유':'—'}</span>`
+      }
+    </div>`;
+  }).join('');
+  openModal('bustListModal');
+}
+
+function unBust(pid){
+  const p=ps.find(x=>x.id===pid);
+  if(!p||!p.busted)return;
+  if(!p.bustedTable){alert('원래 자리 정보가 없습니다.');return;}
+  // 현재 자리가 비어있는지 확인
+  const occupied=ps.find(x=>x.eventId===p.eventId&&x.table===p.bustedTable&&x.seat===p.bustedSeat&&!x.busted);
+  if(occupied){alert(`T${p.bustedTable} · ${p.bustedSeat}번석에 이미 "${occupied.name}"이 있어 복귀할 수 없습니다.`);return;}
+  if(!confirm(`"${p.name}"을 T${p.bustedTable} · ${p.bustedSeat}번석으로 복귀시킬까요?`))return;
+  p.table=p.bustedTable;
+  p.seat=p.bustedSeat;
+  p.busted=false;
+  p.bustedTable=undefined;
+  p.bustedSeat=undefined;
+  p.bustedAt=undefined;
+  save();updateStats();renderBal();
+  openBustList(); // 목록 새로고침
 }
 
 function openAddTableModal(){
@@ -1502,6 +1612,9 @@ function quickBustConfirm(){
   const p=ps.find(x=>x.eventId===balEv&&x.table===qbSelTable&&x.seat===qbSelSeat&&!x.busted);
   if(!p)return;
   if(!confirm(`"${p.name}" (T${qbSelTable}·${qbSelSeat}번석) 버스트 처리할까요?`))return;
+  p.bustedTable=p.table;
+  p.bustedSeat=p.seat;
+  p.bustedAt=new Date().toISOString();
   p.busted=true;
   save();updateStats();renderBal();
   closeModal('quickBustModal');
