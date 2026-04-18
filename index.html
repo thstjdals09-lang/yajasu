@@ -1404,7 +1404,6 @@ function unBust(pid){
   const p=ps.find(x=>x.id===pid);
   if(!p||!p.busted)return;
   if(!p.bustedTable){alert('원래 자리 정보가 없습니다.');return;}
-  // 현재 자리가 비어있는지 확인
   const occupied=ps.find(x=>x.eventId===p.eventId&&x.table===p.bustedTable&&x.seat===p.bustedSeat&&!x.busted);
   if(occupied){alert(`T${p.bustedTable} · ${p.bustedSeat}번석에 이미 "${occupied.name}"이 있어 복귀할 수 없습니다.`);return;}
   if(!confirm(`"${p.name}"을 T${p.bustedTable} · ${p.bustedSeat}번석으로 복귀시킬까요?`))return;
@@ -1414,8 +1413,15 @@ function unBust(pid){
   p.bustedTable=undefined;
   p.bustedSeat=undefined;
   p.bustedAt=undefined;
-  save();updateStats();renderBal();
-  openBustList(); // 목록 새로고침
+  try{
+    const data=buildSaveData();
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    window._localSaveTime=Date.now();
+    if(window._fbDirectSave)window._fbDirectSave(data);
+    else if(window._fbSave)window._fbSave(data);
+  }catch(e){console.error('unBust save error',e);}
+  updateStats();renderBal();
+  openBustList();
 }
 
 function openAddTableModal(){
