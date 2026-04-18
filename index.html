@@ -1201,7 +1201,7 @@ function renderBal(){
       if(movingP&&movingP.eventId===balEv)return`<div class="seat dp" onclick="doMove(${t},${s})"><div class="sn" style="font-size:13px;font-weight:700;color:var(--blue)">${s}</div><div class="dh">▶ 여기로</div></div>`;
       return`<div class="seat"><div class="sn" style="font-size:13px;font-weight:600;color:var(--tx2)">${s}</div></div>`;
     }).join('');
-    return`<div class="${cls}" draggable="true" data-table="${t}" ondragstart="dragTableStart(event,${t})" ondragover="dragTableOver(event)" ondrop="dragTableDrop(event,${t})" ondragend="dragTableEnd(event)"><div class="tcard-h"><div class="tcard-num" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${String(t).padStart(2,'0')}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd">🚫${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
+    return`<div class="${cls}" draggable="true" data-table="${t}" ondragstart="dragTableStart(event,${t})" ondragover="dragTableOver(event)" ondragleave="dragTableLeave(event)" ondrop="dragTableDrop(event,${t})" ondragend="dragTableEnd(event)"><div class="tcard-h"><div class="tcard-num" onclick="editTNum(${balEv},${t})" title="클릭 시 번호 변경">T${String(t).padStart(2,'0')}</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">${lbl}${emptyBadge}<span class="badge b-gy">${cnt}/${max}</span>${blocked.filter(s=>s<=max).length?`<span class="badge b-rd">🚫${blocked.filter(s=>s<=max).length}</span>`:''}</div></div><div class="sgrid">${seats}</div></div>`;
   }).join('');
 }
 
@@ -1210,31 +1210,63 @@ let _dragFromTable=null;
 
 function dragTableStart(e,t){
   _dragFromTable=t;
-  e.currentTarget.style.opacity='.4';
+  setTimeout(()=>e.currentTarget.style.opacity='.3',0);
   e.dataTransfer.effectAllowed='move';
 }
+
 function dragTableOver(e){
   e.preventDefault();
   e.dataTransfer.dropEffect='move';
-  e.currentTarget.style.outline='2px solid var(--blue)';
+  // 모든 카드에서 indicator 제거
+  document.querySelectorAll('.tcard').forEach(c=>{
+    c.style.borderLeft='';
+    c.style.borderRight='';
+  });
+  // 현재 카드 앞에 삽입 표시
+  const rect=e.currentTarget.getBoundingClientRect();
+  const mid=rect.left+rect.width/2;
+  if(e.clientX<mid){
+    e.currentTarget.style.borderLeft='3px solid var(--blue)';
+  } else {
+    e.currentTarget.style.borderRight='3px solid var(--blue)';
+  }
 }
+
+function dragTableLeave(e){
+  e.currentTarget.style.borderLeft='';
+  e.currentTarget.style.borderRight='';
+}
+
 function dragTableDrop(e,toT){
   e.preventDefault();
-  e.currentTarget.style.outline='';
-  if(_dragFromTable===null||_dragFromTable===toT)return;
+  document.querySelectorAll('.tcard').forEach(c=>{
+    c.style.borderLeft='';
+    c.style.borderRight='';
+  });
+  if(_dragFromTable===null||_dragFromTable===toT){_dragFromTable=null;return;}
   if(!tableOrder[balEv])tableOrder[balEv]=getTableOrder(balEv);
   const order=tableOrder[balEv];
   const fromIdx=order.indexOf(_dragFromTable);
-  const toIdx=order.indexOf(toT);
-  if(fromIdx===-1||toIdx===-1)return;
+  let toIdx=order.indexOf(toT);
+  if(fromIdx===-1||toIdx===-1){_dragFromTable=null;return;}
+
+  // 마우스 위치에 따라 앞/뒤 결정
+  const rect=e.currentTarget.getBoundingClientRect();
+  const mid=rect.left+rect.width/2;
+  if(e.clientX>=mid&&toIdx<order.length-1)toIdx++;
+
   order.splice(fromIdx,1);
-  order.splice(toIdx,0,_dragFromTable);
+  order.splice(fromIdx<toIdx?toIdx-1:toIdx,0,_dragFromTable);
   _dragFromTable=null;
   save();renderBal();
 }
+
 function dragTableEnd(e){
   e.currentTarget.style.opacity='';
-  e.currentTarget.style.outline='';
+  document.querySelectorAll('.tcard').forEach(c=>{
+    c.style.borderLeft='';
+    c.style.borderRight='';
+  });
   _dragFromTable=null;
 }
 
