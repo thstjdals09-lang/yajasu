@@ -54,20 +54,23 @@ onAuthStateChanged(auth,user=>{
     document.getElementById('appShell').style.display='none';
     return;
   }
-  // 로그인 됨 - Firebase에서 데이터 먼저 받고 앱 시작
+
   const dbRef=ref(db,'tournament');
+
+  // Firebase에서 최신 데이터 먼저 받고 앱 초기화
   get(dbRef).then(snap=>{
     const data=snap.val();
     if(data)window._pendingFbData=data;
-    _startApp(user);
-    // 이후 실시간 감지
-    onValue(dbRef,snap=>{
-      const d=snap.val();
-      if(!d||d._sid===MY_ID)return;
-      if(window._appReady)window._loadFirebaseData(d);
-    });
-  }).catch(()=>{
-    _startApp(user);
+  }).catch(()=>{}).finally(()=>{
+    // 데이터 받은 후 앱 표시 + 초기화 신호
+    document.getElementById('loadingScreen').style.display='none';
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('appShell').style.display='block';
+    document.getElementById('userEmailLabel').textContent=user.email;
+    window._fbReady=true;
+    if(window._domReady)window._initApp();
+
+    // 실시간 감지 (앱 시작 후)
     onValue(dbRef,snap=>{
       const d=snap.val();
       if(!d||d._sid===MY_ID)return;
@@ -75,13 +78,6 @@ onAuthStateChanged(auth,user=>{
     });
   });
 });
-
-function _startApp(user){
-  document.getElementById('loadingScreen').style.display='none';
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('appShell').style.display='block';
-  document.getElementById('userEmailLabel').textContent=user.email;
-}
 
 document.addEventListener('DOMContentLoaded',()=>{
   const loginBtn=document.getElementById('loginBtn');
@@ -527,7 +523,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
           <div id="manualTableLabel" style="font-size:11px;color:var(--tx3);margin-top:4px"></div>
         </div>
       </div>
-      <button class="btn btn-p btn-full" onclick="doReg()">손성민에게 후원하기</button>
+      <button class="btn btn-p btn-full" onclick="doReg()">강민혁이 발작버튼</button>
       <div class="err" id="regErr"></div>
     </div>
     <div style="margin-top:20px" id="seatBlockWrap"></div>
@@ -2039,25 +2035,41 @@ function addSrc(){const inp=document.getElementById('newSrcName'),n=inp.value.tr
 function delSrc(i){sources.splice(i,1);save();renderSrcMgmt();refreshSrc();}
 function resetAll(){if(!confirm('모든 참가자 데이터를 초기화할까요?'))return;ps=[];nxId=1;movingP=null;regClosed={};regClosedAt={};save();updateRegUI();updateStats();renderBal();renderList();}
 
-load();
-// 세션 복원 (이벤트 선택 + 탭)
-const _ss=sessionStorage;
-const _savedSelEv=parseInt(_ss.getItem('selEv'));
-const _savedBalEv=parseInt(_ss.getItem('balEv'));
-const _savedListEv=parseInt(_ss.getItem('listEv'));
-if(_savedSelEv&&evs.find(e=>e.id===_savedSelEv))selEv=_savedSelEv;
-if(_savedBalEv&&evs.find(e=>e.id===_savedBalEv))balEv=_savedBalEv;
-if(_savedListEv&&evs.find(e=>e.id===_savedListEv))listEv=_savedListEv;
-regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
-window._appReady=true;
-if(window._pendingFbData){
-  window._loadFirebaseData(window._pendingFbData);
-  window._pendingFbData=null;
-}
-// 마지막 탭 복원
-const _lastTab=_ss.getItem('lastTab');
-if(_lastTab)go(_lastTab);
-else go('reg');
+window._fbReady=false;
+window._domReady=false;
+
+window._initApp=function(){
+  if(!window._fbReady||!window._domReady)return;
+
+  // Firebase 데이터가 있으면 먼저 로컬 덮어씀
+  if(window._pendingFbData){
+    applyData(window._pendingFbData);
+    window._pendingFbData=null;
+  } else {
+    load(); // localStorage 폴백
+  }
+
+  // 세션 복원 (이벤트 선택 + 탭)
+  const _ss=sessionStorage;
+  const _savedSelEv=parseInt(_ss.getItem('selEv'));
+  const _savedBalEv=parseInt(_ss.getItem('balEv'));
+  const _savedListEv=parseInt(_ss.getItem('listEv'));
+  if(_savedSelEv&&evs.find(e=>e.id===_savedSelEv))selEv=_savedSelEv;
+  if(_savedBalEv&&evs.find(e=>e.id===_savedBalEv))balEv=_savedBalEv;
+  if(_savedListEv&&evs.find(e=>e.id===_savedListEv))listEv=_savedListEv;
+
+  regPills();balPills();listPills();refreshSrc();updateStats();updateRegUI();
+  window._appReady=true;
+
+  // 마지막 탭 복원
+  const _lastTab=_ss.getItem('lastTab');
+  if(_lastTab)go(_lastTab);
+  else go('reg');
+};
+
+// DOM 준비 완료 신호
+window._domReady=true;
+if(window._fbReady)window._initApp();
 </script>
 </body>
 </html>
