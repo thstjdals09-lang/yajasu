@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>홀덤 토너먼트 매니저</title>
+<title>싯카드없애기 프로젝트</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -1269,25 +1269,44 @@ function dragTableEnd(e){
 }
 
 // ── 터치 드래그앤드롭 ──
+let _touchTimer=null;
+let _touchStartX=0;
+let _touchStartY=0;
+let _touchReady=false;
+
 function touchDragStart(e,t){
   e.stopPropagation();
-  _dragFromTable=t;
-  _dragEl=e.currentTarget;
-  _dragEl.style.opacity='.3';
-  const rect=_dragEl.getBoundingClientRect();
-  _ghost=_dragEl.cloneNode(true);
-  _ghost.style.cssText=`position:fixed;pointer-events:none;z-index:9999;opacity:.7;width:${rect.width}px;transform:scale(1.05);transition:none;left:${rect.left}px;top:${rect.top}px;box-shadow:0 8px 24px rgba(0,0,0,.5)`;
-  document.body.appendChild(_ghost);
+  _touchStartX=e.touches[0].clientX;
+  _touchStartY=e.touches[0].clientY;
+  _touchReady=false;
+  _touchTimer=setTimeout(()=>{
+    _touchReady=true;
+    _dragFromTable=t;
+    _dragEl=e.currentTarget;
+    _dragEl.style.opacity='.3';
+    // 진동 피드백 (지원 기기)
+    if(navigator.vibrate)navigator.vibrate(40);
+    const rect=_dragEl.getBoundingClientRect();
+    _ghost=_dragEl.cloneNode(true);
+    _ghost.style.cssText=`position:fixed;pointer-events:none;z-index:9999;opacity:.8;width:${rect.width}px;transform:scale(1.05);transition:none;left:${rect.left}px;top:${rect.top}px;box-shadow:0 8px 24px rgba(0,0,0,.5)`;
+    document.body.appendChild(_ghost);
+  },500);
 }
 
 function touchDragMove(e){
+  const dx=Math.abs(e.touches[0].clientX-_touchStartX);
+  const dy=Math.abs(e.touches[0].clientY-_touchStartY);
+  // 0.5초 안에 많이 움직이면 스크롤로 판단, 타이머 취소
+  if(!_touchReady){
+    if(dx>8||dy>8){clearTimeout(_touchTimer);_touchTimer=null;}
+    return;
+  }
   if(_dragFromTable===null||!_ghost)return;
   e.preventDefault();
   const touch=e.touches[0];
   const w=parseInt(_ghost.style.width);
   _ghost.style.left=(touch.clientX-w/2)+'px';
-  _ghost.style.top=(touch.clientY-30)+'px';
-  // 아래 있는 카드 찾기
+  _ghost.style.top=(touch.clientY-40)+'px';
   document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
   _ghost.style.display='none';
   const el=document.elementFromPoint(touch.clientX,touch.clientY);
@@ -1301,13 +1320,14 @@ function touchDragMove(e){
 }
 
 function touchDragEnd(e){
-  if(_dragFromTable===null)return;
+  clearTimeout(_touchTimer);_touchTimer=null;
+  if(!_touchReady){_touchReady=false;return;}
+  _touchReady=false;
   const touch=e.changedTouches[0];
   document.querySelectorAll('.tcard').forEach(c=>{c.style.borderLeft='';c.style.borderRight='';});
   if(_ghost){_ghost.remove();_ghost=null;}
   if(_dragEl){_dragEl.style.opacity='';_dragEl=null;}
-  _ghost=null;
-  // 드롭 대상 찾기
+  if(_dragFromTable===null)return;
   const el=document.elementFromPoint(touch.clientX,touch.clientY);
   const card=el?.closest('.tcard[data-table]');
   if(!card){_dragFromTable=null;return;}
