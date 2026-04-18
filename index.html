@@ -493,9 +493,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
           <label>자리 지정 <span style="font-weight:400;color:var(--tx3);font-size:10px">(비우면 자동)</span></label>
           <div style="display:flex;gap:6px;align-items:center">
             <input id="manualTable" type="number" min="1" placeholder="테이블" style="text-align:center;width:80px;flex-shrink:0" oninput="updateManualSeatSelect()">
-            <select id="manualSeat" style="flex:1;min-width:0" disabled>
-              <option value="">— 테이블 먼저 —</option>
-            </select>
+            <input id="manualSeat" type="number" min="1" max="9" placeholder="좌석" style="text-align:center;flex:1;min-width:0" disabled oninput="updateManualSeatInfo()">
           </div>
           <div id="manualTableLabel" style="font-size:11px;color:var(--tx3);margin-top:4px"></div>
         </div>
@@ -925,7 +923,7 @@ function pills(cid,cur,fn,showT){
     d.onclick=()=>fn(e.id);el.appendChild(d);
   });
 }
-function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();document.getElementById('manualTable').value='';const s=document.getElementById('manualSeat');s.innerHTML='<option value="">— 테이블 먼저 —</option>';s.disabled=true;document.getElementById('manualTableLabel').textContent='';},true);}
+function regPills(){pills('regPills',selEv,id=>{selEv=id;regPills();updateStats();updateRegUI();renderSeatBlock();document.getElementById('manualTable').value='';const s=document.getElementById('manualSeat');s.value='';s.disabled=true;const l=document.getElementById('manualTableLabel');if(l)l.textContent='';},true);}
 function balPills(){pills('balPills',balEv,id=>{balEv=id;cancelMove();renderBal();updateStats();},true);}
 function listPills(){pills('listPills',listEv,id=>{listEv=id;listPills();renderList();},true);}
 function refreshSrc(){const el=document.getElementById('srcIn');if(!el)return;el.innerHTML=sources.map(s=>`<option>${s}</option>`).join('');}
@@ -999,52 +997,38 @@ function renderSeatBlock(){
 
 function updateManualSeatSelect(){
   const t=parseInt(document.getElementById('manualTable').value);
-  const sel=document.getElementById('manualSeat');
+  const seatIn=document.getElementById('manualSeat');
   const label=document.getElementById('manualTableLabel');
-
   if(!t){
-    sel.innerHTML='<option value="">— 테이블 먼저 —</option>';
-    sel.disabled=true;
+    seatIn.disabled=true;
+    seatIn.value='';
+    seatIn.placeholder='좌석';
     if(label){label.textContent='';label.style.color='var(--tx3)';}
     return;
   }
-
-  sel.disabled=false;
-  sel.innerHTML='<option value="">좌석 선택</option>';
-
+  seatIn.disabled=false;
+  seatIn.max=getMax(selEv)||9;
   if(!selEv)return;
-  const max=getMax(selEv);
-  const blocked=getBlockedSeats(selEv);
   const taken=ps.filter(p=>p.eventId===selEv&&p.table===t&&!p.busted).map(p=>p.seat);
   const isNewTable=taken.length===0;
-
   if(label){
-    if(isNewTable){
-      label.textContent='새 테이블 — 등록 시 자동 생성';
-      label.style.color='var(--green)';
-    } else {
-      label.textContent=`${taken.length}명 착석 중`;
-      label.style.color='var(--tx3)';
-    }
+    if(isNewTable){label.textContent='새 테이블 — 등록 시 자동 생성';label.style.color='var(--green)';}
+    else{label.textContent=`${taken.length}명 착석 중`;label.style.color='var(--tx3)';}
   }
+  updateManualSeatInfo();
+}
 
-  for(let s=1;s<=max;s++){
-    const isBlocked=blocked.includes(s);
-    const isTaken=taken.includes(s);
-    const opt=document.createElement('option');
-    opt.value=s;
-    if(isTaken){
-      const occupant=ps.find(p=>p.eventId===selEv&&p.table===t&&p.seat===s&&!p.busted);
-      opt.textContent=`${s}번 — ${occupant?occupant.name:'점유'}`;
-      opt.style.cssText='color:#ef4444;background:#2d0a0a';
-    } else if(isBlocked){
-      opt.textContent=`${s}번 — 차단됨`;
-      opt.style.cssText='color:#f59e0b;background:#2d1a00';
-    } else {
-      opt.textContent=`${s}번 — 빈자리`;
-    }
-    sel.appendChild(opt);
-  }
+function updateManualSeatInfo(){
+  const t=parseInt(document.getElementById('manualTable').value);
+  const s=parseInt(document.getElementById('manualSeat').value);
+  const label=document.getElementById('manualTableLabel');
+  if(!label||!t||!s||!selEv)return;
+  const blocked=getBlockedSeats(selEv);
+  const occupant=ps.find(p=>p.eventId===selEv&&p.table===t&&p.seat===s&&!p.busted);
+  const isBlocked=blocked.includes(s);
+  if(occupant){label.textContent=`⚠ ${s}번석 — ${occupant.name} 착석 중`;label.style.color='var(--red)';}
+  else if(isBlocked){label.textContent=`⚠ ${s}번석 — 차단된 자리`;label.style.color='var(--amber)';}
+  else{label.textContent=`✓ ${s}번석 — 빈자리`;label.style.color='var(--green)';}
 }
 
 function doReg(){
@@ -1090,8 +1074,7 @@ function doReg(){
   document.getElementById('nickIn').value='';
   document.getElementById('manualTable').value='';
   const ms=document.getElementById('manualSeat');
-  ms.innerHTML='<option value="">— 테이블 먼저 —</option>';
-  ms.disabled=true;
+  ms.value='';ms.disabled=true;
   const ml=document.getElementById('manualTableLabel');
   if(ml)ml.textContent='';
   save();
