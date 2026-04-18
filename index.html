@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>♥야자수의 빛과 소금 강민혁♥</title>
+<title>홀덤 토너먼트 매니저</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -527,7 +527,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
           <div id="manualTableLabel" style="font-size:11px;color:var(--tx3);margin-top:4px"></div>
         </div>
       </div>
-      <button class="btn btn-p btn-full" onclick="doReg()">강민혁 하기♥</button>
+      <button class="btn btn-p btn-full" onclick="doReg()">강민혁 발작버튼</button>
       <div class="err" id="regErr"></div>
     </div>
     <div style="margin-top:20px" id="seatBlockWrap"></div>
@@ -989,16 +989,25 @@ function assignSeat(eid){
   const ev=evs.find(e=>e.id===eid),max=getMax(eid),st=ev?ev.startT:1;
   const ep=ps.filter(p=>p.eventId===eid&&!p.busted),tm={};
   ep.forEach(p=>{tm[p.table]=(tm[p.table]||0)+1;});
-  const usedTables=Object.keys(tm).map(Number).sort((a,b)=>a-b);
   const blocked=getBlockedSeats(eid);
+  const usedTables=Object.keys(tm).map(Number).filter(t=>!isTableExcluded(eid,t));
+
+  // 빈자리 많은 테이블 우선으로 정렬
+  usedTables.sort((a,b)=>{
+    const emptyA=max-(tm[a]||0)-blocked.filter(s=>s<=max).length;
+    const emptyB=max-(tm[b]||0)-blocked.filter(s=>s<=max).length;
+    return emptyB-emptyA;
+  });
+
   for(const t of usedTables){
-    if(isTableExcluded(eid,t))continue;
-    const taken=ep.filter(p=>p.table===t).map(p=>p.seat),avail=[];
+    const taken=ep.filter(p=>p.table===t).map(p=>p.seat);
+    const avail=[];
     for(let s=1;s<=max;s++)if(!taken.includes(s)&&!blocked.includes(s))avail.push(s);
     if(avail.length)return{table:t,seat:avail[Math.floor(Math.random()*avail.length)]};
   }
+  // 모든 테이블이 꽉 찼으면 새 테이블 오픈
   let nextT=st;
-  const used=new Set(usedTables);
+  const used=new Set(Object.keys(tm).map(Number));
   while(isTableExcluded(eid,nextT)||used.has(nextT))nextT++;
   const avail=[];
   for(let s=1;s<=max;s++)if(!blocked.includes(s))avail.push(s);
