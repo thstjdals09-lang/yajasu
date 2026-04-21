@@ -513,7 +513,11 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         <div class="fg"><label>닉네임 <span style="font-weight:400;color:var(--tx3);font-size:10px">(내부용)</span></label><input id="nickIn" type="text" placeholder="선택사항" autocomplete="off"></div>
       </div>
       <div class="fr fr2" style="margin-bottom:10px">
+        <div class="fg"><label>생년월일 <span id="dobRequired" style="color:var(--red);font-size:10px;display:none">*필수</span></label>
+          <input id="dobIn" type="text" placeholder="예: 19900101" maxlength="8" autocomplete="off" style="font-family:var(--mono)"></div>
         <div class="fg"><label>획득 경로</label><select id="srcIn"></select></div>
+      </div>
+      <div class="fr fr2" style="margin-bottom:10px">
         <div class="fg">
           <label>자리 지정 <span style="font-weight:400;color:var(--tx3);font-size:10px">(비우면 자동)</span></label>
           <div style="display:flex;gap:6px;align-items:center">
@@ -522,8 +526,10 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
           </div>
           <div id="manualTableLabel" style="font-size:11px;color:var(--tx3);margin-top:4px"></div>
         </div>
+        <div class="fg"><label style="visibility:hidden">.</label>
+          <button class="btn btn-p btn-full" style="height:42px" onclick="doReg()">등록 + 출력</button>
+        </div>
       </div>
-      <button class="btn btn-p btn-full" onclick="doReg()">퇴근하기 버튼</button>
       <div class="err" id="regErr"></div>
     </div>
     <div style="margin-top:20px" id="seatBlockWrap"></div>
@@ -891,6 +897,19 @@ function updateRegUI(){
     btn.textContent=selEv?'레지 마감':'레지 마감';btn.className='btn btn-am btn-sm';
     banner.classList.remove('on');form.style.opacity='';form.style.pointerEvents='';
   }
+  // 중복방지 활성 시 생년월일 필수 표시
+  const ev=evs.find(e=>e.id===selEv);
+  const dobReq=document.getElementById('dobRequired');
+  const dobIn=document.getElementById('dobIn');
+  if(dobReq){
+    if(ev&&ev.noDuplicate){
+      dobReq.style.display='inline';
+      if(dobIn)dobIn.placeholder='필수: 예) 19900101';
+    } else {
+      dobReq.style.display='none';
+      if(dobIn)dobIn.placeholder='예: 19900101';
+    }
+  }
 }
 
 /* ── 참가자 검색 ── */
@@ -1109,10 +1128,22 @@ function doReg(){
   const name=document.getElementById('nameIn').value.trim();
   const nick=document.getElementById('nickIn').value.trim();
   const src=document.getElementById('srcIn').value;
+  const dob=document.getElementById('dobIn').value.trim();
   const err=document.getElementById('regErr');
   if(!name){err.textContent='이름을 입력해주세요.';return;}
   err.textContent='';
   const ev=evs.find(e=>e.id===selEv);
+
+  // 중복방지 체크 (프리즈아웃)
+  if(ev.noDuplicate){
+    if(!dob){err.textContent='중복 방지가 활성화된 이벤트입니다. 생년월일을 입력해주세요.';return;}
+    // 이름+생년월일 일치하는 참가자가 이미 있으면 차단
+    const dup=ps.find(p=>p.eventId===selEv&&p.name===name&&p.dob===dob);
+    if(dup){
+      err.textContent=`이미 참가한 이벤트입니다. (${dup.busted?'버스트 아웃':'플레이 중'})`;
+      return;
+    }
+  }
 
   // 수동 자리 지정 확인 - 테이블+좌석 둘 다 입력된 경우만
   const manualTableVal=document.getElementById('manualTable').value.trim();
@@ -1125,7 +1156,6 @@ function doReg(){
     if(isNaN(table)||isNaN(seat)){
       err.textContent='테이블·좌석 번호를 올바르게 입력해주세요.';return;
     }
-    // 이미 사람이 있는지 확인
     const existing=ps.find(p=>p.eventId===selEv&&p.table===table&&p.seat===seat&&!p.busted);
     if(existing){
       if(!confirm(`T${table} · ${seat}번석에 이미 "${existing.name}"이 있습니다.\n그래도 이 자리에 등록할까요?`))return;
@@ -1133,18 +1163,18 @@ function doReg(){
   } else if(manualTableVal&&!manualSeatVal){
     err.textContent='좌석 번호도 선택해주세요.';return;
   } else {
-    // 둘 다 비어있으면 자동 배정
     const assigned=assignSeat(selEv);
     table=assigned.table;
     seat=assigned.seat;
   }
 
   const num=ps.filter(p=>p.eventId===selEv).length+1;
-  const p={id:nxId++,name,nick,src,eventId:selEv,evName:ev.name,num,table,seat,busted:false,moved:false,prevTable:null,time:new Date(),reentry:false};
+  const p={id:nxId++,name,nick,src,dob:dob||undefined,eventId:selEv,evName:ev.name,num,table,seat,busted:false,moved:false,prevTable:null,time:new Date(),reentry:false};
   ps.push(p);
   registerTableOrder(selEv,table);
   document.getElementById('nameIn').value='';
   document.getElementById('nickIn').value='';
+  document.getElementById('dobIn').value='';
   document.getElementById('manualTable').value='';
   const ms=document.getElementById('manualSeat');
   ms.value='';ms.disabled=true;
@@ -1809,6 +1839,13 @@ function renderList(){
     return`<div class="psec"><div class="psec-h"><div class="pt">${ev.name} — 전체 ${tot}명 · 플레이 ${act}명${reentryInfo}</div><button class="btn btn-g btn-xs" onclick="downloadXlsx(${ev.id})">엑셀 다운로드</button></div>`+
       ev.list.map(p=>{
         const reentryBadge=p.reentry?`<span class="badge b-pu" style="font-size:10px;flex-shrink:0">${p.reentryCount||1}차RE</span>`:'';
+        // 중복방지 이벤트: 같은 이름+생년월일로 참가한 총 횟수 표시
+        let totalEntry='';
+        if(evCfg?.noDuplicate&&p.dob){
+          const cnt=ps.filter(x=>x.eventId===p.eventId&&x.name===p.name&&x.dob===p.dob).length;
+          if(cnt>1)totalEntry=`<span class="badge b-am" style="font-size:10px;flex-shrink:0">총${cnt}회</span>`;
+        }
+        const dobBadge=p.dob?`<span style="font-size:10px;color:var(--tx3);flex-shrink:0;font-family:var(--mono)">${p.dob}</span>`:'';
         const seatBadge=p.busted
           ?`<span class="badge b-rd" style="flex-shrink:0">버스트</span>`
           :`<span class="badge${p.moved?' b-gr':' b-gy'}" style="flex-shrink:0;white-space:nowrap">${p.moved?'이동·':''}T${p.table}-${p.seat}</span>`;
@@ -1818,7 +1855,8 @@ function renderList(){
         return`<div class="prow${p.busted?' po':''}${p.reentry?' reentry':''}">
           <div class="pcirc">${p.num}</div>
           <div class="pn">${p.name}${p.nick?` <span class="pnk">(${p.nick})</span>`:''}</div>
-          ${reentryBadge}
+          ${dobBadge}
+          ${reentryBadge}${totalEntry}
           ${seatBadge}
           <div class="prow-btns">
             <button class="btn btn-g btn-xs" onclick="showRegRc(ps.find(x=>x.id===${p.id}))">출력</button>
@@ -2027,6 +2065,15 @@ function renderEvList(){
         <div class="fg"><label>최대 리엔트리 횟수 (0=무제한)</label>
           <input type="number" min="0" value="${e.reentryMax||0}" ${e.reentryAllowed===false?'disabled':''} onchange="evs.find(x=>x.id===${e.id}).reentryMax=parseInt(this.value)||0;save()">
         </div>
+      </div>
+      <div class="fr fr2" style="margin-bottom:10px">
+        <div class="fg"><label>중복 참가 방지 <span style="font-weight:400;color:var(--tx3);font-size:10px">(이름+생년월일)</span></label>
+          <select onchange="evs.find(x=>x.id===${e.id}).noDuplicate=this.value==='true';save();renderEvList();updateRegUI()">
+            <option value="false" ${!e.noDuplicate?'selected':''}>비활성</option>
+            <option value="true" ${e.noDuplicate?'selected':''}>활성 (프리즈아웃)</option>
+          </select>
+        </div>
+        <div class="fg"><label style="color:var(--tx3);font-size:11px">활성화 시 등록 시 생년월일 필수 입력,<br>버스트 후 재등록 불가</label></div>
       </div>
       <div class="fr fr2" style="margin-bottom:10px">
         <div class="fg"><label>시작 테이블 번호</label><input type="number" min="1" value="${e.startT||1}" onchange="evs.find(x=>x.id===${e.id}).startT=parseInt(this.value)||1;save();renderEvList();regPills()"></div>
