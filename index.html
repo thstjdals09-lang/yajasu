@@ -1892,8 +1892,8 @@ function buildTb(mode){
   const cfg=RC[mode],iid=mode==='entry'?'tbEntry':'tbMove',el=document.getElementById(iid);if(!el)return;
   const isEntry=mode==='entry';
   const textFields=isEntry
-    ?[['로고','logo'],['서브타이틀','sub'],['칩용 타입 라벨','chipLabel'],['좌석용 타입 라벨','seatLabel'],['이벤트 항목명','evLabel'],['일시 항목명','dateLabel'],['참가번호 항목명','numLabel'],['참가자 항목명','nameLabel'],['칩용 하단 문구','footerChip'],['좌석용 하단 문구','footerSeat']]
-    :[['로고','logo'],['서브타이틀','sub'],['타입 라벨','label'],['이전 테이블 라벨','prevLabel'],['새 좌석 라벨','newLabel'],['이벤트 항목명','evLabel'],['일시 항목명','dateLabel'],['참가번호 항목명','numLabel'],['참가자 항목명','nameLabel'],['하단 문구','footer']];
+    ?[['로고','logo'],['서브타이틀','sub'],['칩용 타입 라벨','chipLabel'],['좌석용 타입 라벨','seatLabel'],['이벤트 항목명','evLabel'],['일시 항목명','dateLabel'],[' 항목명','numLabel'],['참가자 항목명','nameLabel'],['칩용 하단 문구','footerChip'],['좌석용 하단 문구','footerSeat']]
+    :[['로고','logo'],['서브타이틀','sub'],['타입 라벨','label'],['이전 테이블 라벨','prevLabel'],['새 좌석 라벨','newLabel'],['이벤트 항목명','evLabel'],['일시 항목명','dateLabel'],[' 항목명','numLabel'],['참가자 항목명','nameLabel'],['하단 문구','footer']];
   const tf=()=>textFields.map(([label,key])=>`<div class="fg"><label>${label}</label><input type="text" value="${String(cfg[key]||'').replace(/"/g,'&quot;')}" oninput="setRC('${mode}','${key}',this.value)"></div>`).join('');
   const nf=(label,key,min,max)=>`<div class="fg"><label>${label}</label><input type="number" value="${cfg[key]||0}" min="${min}" max="${max}" oninput="setRC('${mode}','${key}',parseInt(this.value)||${min})"></div>`;
   const sf=(label,key,opts)=>`<div class="fg"><label>${label}</label><select onchange="setRC('${mode}','${key}',this.value)">${opts.map(o=>`<option value="${o}"${o===cfg[key]?' selected':''}>${o}</option>`).join('')}</select></div>`;
@@ -1903,7 +1903,7 @@ function buildTb(mode){
   const sections=[
     {title:'문구',html:tf(),open:true},
     {title:'볼드 설정',html:[bf('로고','logoBold'),bf('서브타이틀','subBold'),bf('타입 라벨','typeBold'),bf('본문 (이벤트·일시)','bodyBold'),bf('참가 번호','numBold'),bf('테이블·좌석','seatBold'),bf('참가자 이름','nameBold'),bf('하단 문구','footerBold')].join(''),open:false},
-    {title:'폰트 크기',html:[nf('로고','logoSize',10,28),nf('서브타이틀','subSize',8,20),nf('타입 라벨','typeSize',8,20),nf('본문','bodySize',8,20),nf('참가번호 (큰 숫자)','numSize',16,60),nf('테이블·좌석','seatSize',10,28),nf('하단 문구','footerSize',8,18)].join(''),open:false},
+    {title:'폰트 크기',html:[nf('로고','logoSize',10,28),nf('서브타이틀','subSize',8,20),nf('타입 라벨','typeSize',8,20),nf('본문','bodySize',8,20),nf(' (큰 숫자)','numSize',16,60),nf('테이블·좌석','seatSize',10,28),nf('하단 문구','footerSize',8,18)].join(''),open:false},
     {title:'여백 (mm)',html:[nf('상단','paddingTop',0,30),nf('하단','paddingBottom',0,30),nf('좌','paddingLeft',0,20),nf('우','paddingRight',0,20)].join(''),open:true},
     {title:'폰트 & 색상',html:sf('폰트','font',['Courier New','Georgia','Arial','Times New Roman','serif','monospace','sans-serif'])+sf('구분선','divStyle',['dashed','solid','double','none'])+`<div class="fg"><label>글자색</label><input type="color" value="${cfg.textColor||'#111'}" oninput="setRC('${mode}','textColor',this.value)"></div>`+`<div class="fg"><label>종이 배경색</label><input type="color" value="${cfg.paperColor||'#ffffff'}" oninput="setRC('${mode}','paperColor',this.value)"></div>`,open:false},
     {title:'배경 이미지 (워터마크)',html:imgZone('배경 이미지','bgImg','bgOpacity',sf('배경 크기','bgSize',['cover','contain','auto'])+sf('배경 위치','bgPos',['center','top','bottom','left','right'])),open:false},
@@ -1957,7 +1957,7 @@ ${dv}<div style="display:flex;justify-content:space-between;margin:2px 0;font-si
 <div style="text-align:center;font-size:${sz.num}px;font-weight:${bw('numBold')};letter-spacing:4px;margin:8px 0 2px;color:#2563eb">${String(p.num).padStart(3,'0')}</div>
 <div style="text-align:center;font-size:${Math.max(8,sz.body-2)}px;color:${c}77;margin-bottom:6px">${cfg.numLabel}</div>${dv}
 <div style="text-align:center;font-size:${sz.seat}px;font-weight:${bw('seatBold')};margin-bottom:2px">TABLE ${String(p.table).padStart(2,'0')} — SEAT ${p.seat}</div>
-<div style="text-align:center;font-size:${sz.body-1}px;color:${c}88;margin-bottom:2px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
+<div style="text-align:center;font-size:${sz.body-1}px;color:${c}88;margin-bottom:5px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
 <div style="display:flex;gap:8px;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('nameBold')}"><span>${cfg.nameLabel}</span><span>${p.name}</span></div>${dv}
 <div style="text-align:center;font-size:${sz.footer}px;font-weight:${bw('footerBold')};color:${c}88;margin-top:8px">${cfg.footer}</div>`);}
 
@@ -1971,7 +1971,7 @@ ${dv}<div style="display:flex;justify-content:space-between;margin:2px 0;font-si
 <div style="text-align:center;font-size:${sz.num}px;font-weight:${bw('numBold')};letter-spacing:4px;margin:8px 0 2px">${String(p.num).padStart(3,'0')}</div>
 <div style="text-align:center;font-size:${Math.max(8,sz.body-2)}px;color:${c}77;margin-bottom:6px">${cfg.numLabel}</div>${dv}
 <div style="text-align:center;font-size:${sz.seat}px;font-weight:${bw('seatBold')};margin-bottom:2px">TABLE ${String(p.table).padStart(2,'0')} — SEAT ${p.seat}</div>
-<div style="text-align:center;font-size:${sz.body-1}px;color:${c}88;margin-bottom:2px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
+<div style="text-align:center;font-size:${sz.body-1}px;color:${c}88;margin-bottom:5px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
 <div style="display:flex;gap:8px;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('nameBold')}"><span>${cfg.nameLabel}</span><span>${p.name}</span></div>${dv}
 <div style="text-align:center;font-size:${sz.footer}px;font-weight:${bw('footerBold')};color:${c}88;margin-top:8px">${footer}</div>`);
 }
