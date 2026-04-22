@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>홀덤 토너먼트 매니저</title>
+<title>빛과소금 강민혁</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -1231,10 +1231,10 @@ function cancelMove(){movingP=null;document.getElementById('moveBanner').classLi
 function doMove(t,s){
   if(!movingP)return;
   if(ps.find(p=>p.eventId===balEv&&p.table===t&&p.seat===s&&!p.busted)){alert('이미 사람이 있는 좌석입니다.');return;}
-  movingP.prevTable=movingP.table;movingP.table=t;movingP.seat=s;movingP.moved=true;
+  movingP.prevTable=movingP.table;movingP.prevSeat=movingP.seat;movingP.table=t;movingP.seat=s;movingP.moved=true;
   const mp=movingP;movingP=null;
   document.getElementById('moveBanner').classList.remove('on');
-  save();updateStats();showMoveRc([{p:mp,fromTable:mp.prevTable}]);renderBal();
+  save();updateStats();showMoveRc([{p:mp,fromTable:mp.prevTable,fromSeat:mp.prevSeat}]);renderBal();
 }
 
 function editTNum(eid,oldN){
@@ -1587,13 +1587,13 @@ function doAddTableBalancing(){
   if(!confirm(`T${newT} 추가 후 ${moves.length}명 이동 처리할까요?`))return;
   moves.forEach(m=>{
     const p=ps.find(x=>x.id===m.pid);
-    if(p){p.prevTable=p.table;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}
+    if(p){p.prevTable=p.table;p.prevSeat=p.seat;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}
   });
   registerTableOrder(balEv,newT);
   save();updateStats();renderBal();
   closeModal('addTableModal');
   if(moves.length>0){
-    const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable})).filter(x=>x.p);
+    const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable,fromSeat:ps.find(x=>x.id===m.pid)?.prevSeat})).filter(x=>x.p);
     showMoveRc(items);
   }
 }
@@ -1649,11 +1649,11 @@ function openBalancing(){
 
   moves.forEach(m=>{
     const p=ps.find(x=>x.id===m.pid);
-    if(p){p.prevTable=p.table;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}
+    if(p){p.prevTable=p.table;p.prevSeat=p.seat;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}
   });
 
   save();updateStats();renderBal();
-  const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable})).filter(x=>x.p);
+  const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable,fromSeat:ps.find(x=>x.id===m.pid)?.prevSeat})).filter(x=>x.p);
   showMoveRc(items);
 }
 
@@ -1819,9 +1819,9 @@ function updateCmbPreview(){
 function doCombine(){
   const prev=document.getElementById('cmbPreview'),moves=prev._moves;
   if(!moves||!moves.length){alert('이동할 참가자가 없거나 선택이 잘못되었습니다.');return;}
-  moves.forEach(m=>{const p=ps.find(x=>x.id===m.pid);if(p){p.prevTable=p.table;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}});
+  moves.forEach(m=>{const p=ps.find(x=>x.id===m.pid);if(p){p.prevTable=p.table;p.prevSeat=p.seat;p.table=m.toTable;p.seat=m.toSeat;p.moved=true;}});
   closeModal('combineModal');save();updateStats();renderBal();
-  const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable})).filter(x=>x.p);
+  const items=moves.map(m=>({p:ps.find(x=>x.id===m.pid),fromTable:m.fromTable,fromSeat:ps.find(x=>x.id===m.pid)?.prevSeat})).filter(x=>x.p);
   showMoveRc(items);
 }
 
@@ -1928,7 +1928,7 @@ function divH(style,color){
   return`<div style="margin:8px 0;${st}"></div>`;
 }
 
-function buildRcHtml(p,type,isMove,fromTable){
+function buildRcHtml(p,type,isMove,fromTable,fromSeat){
   const cfg=isMove?{...RC.entry,...RC.move}:RC.entry;
   const pad=n=>String(n).padStart(2,'0');
   const d=p.time instanceof Date?p.time:new Date(p.time);
@@ -1959,14 +1959,16 @@ function buildRcHtml(p,type,isMove,fromTable){
   const _p=v=>(v===undefined||v===null||v==='')?6:Number(v);const wrap=html=>`<div style="position:relative;background:${paper};font-family:'${font}',Arial,sans-serif;color:${c};line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact">${bgLayer}${midImg}<div style="position:relative;z-index:1;padding:${_p(cfg.paddingTop)}mm ${_p(cfg.paddingRight)}mm ${_p(cfg.paddingBottom)}mm ${_p(cfg.paddingLeft)}mm">${topImg}${html}${botImg}</div></div>`;
   const bw=key=>cfg[key]?'700':'400';
 
-  if(isMove){return wrap(`
+    if(isMove){
+    const fs = fromSeat ? ` — SEAT ${fromSeat}` : '';
+    return wrap(`
 <div style="text-align:center;font-weight:${bw('logoBold')};letter-spacing:1px;margin-bottom:2px;font-size:${sz.logo}px;color:${c}">${cfg.logo}</div>
 <div style="text-align:center;font-weight:${bw('subBold')};margin-bottom:10px;font-size:${sz.sub}px;color:${c}">${cfg.sub}</div>
 <div style="text-align:center;font-weight:${bw('typeBold')};letter-spacing:2px;padding:3px 0;margin-bottom:8px;border-top:1px solid ${c};border-bottom:1px solid ${c};font-size:${sz.type}px;color:${c}">${cfg.label}</div>
 ${dv}<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')};color:${c}"><span>${cfg.evLabel}</span><span>${p.evName}</span></div>
 <div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')};color:${c}"><span>${cfg.dateLabel}</span><span>${ds} ${ts}</span></div>${evMsg}${dv}
 <div style="text-align:center;font-size:${sz.prevLabel}px;font-weight:400;color:${c};margin-bottom:2px">${cfg.prevLabel}</div>
-<div style="text-align:center;font-size:${sz.prevNum}px;font-weight:700;color:${c};text-decoration:line-through;margin-bottom:8px">TABLE ${String(fromTable).padStart(2,'0')}</div>
+<div style="text-align:center;font-size:${sz.prevNum}px;font-weight:700;color:${c};text-decoration:line-through;margin-bottom:8px">TABLE ${String(fromTable).padStart(2,'0')}${fs}</div>
 <div style="text-align:center;font-size:${sz.newLabel}px;font-weight:700;color:${c};margin-bottom:6px">▼ ${cfg.newLabel}</div>
 <div style="text-align:center;font-size:${sz.seat}px;font-weight:${bw('seatBold')};margin-bottom:2px;color:${c}">TABLE ${String(p.table).padStart(2,'0')} — SEAT ${p.seat}</div>
 <div style="text-align:center;font-size:${sz.seatSub}px;font-weight:${bw('seatSubBold')};color:${c};margin-bottom:2px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
@@ -1993,7 +1995,7 @@ function updatePrev(){
   const pc=document.getElementById('pvChipWrap'),ps2=document.getElementById('pvSeatWrap'),pm=document.getElementById('pvMoveWrap');
   if(pc)pc.innerHTML=buildRcHtml(mock,'chip',false);
   if(ps2)ps2.innerHTML=buildRcHtml(mock,'seat',false);
-  if(pm)pm.innerHTML=buildRcHtml(mock,'move',true,1);
+  if(pm)pm.innerHTML=buildRcHtml(mock,'move',true,1,9);
 }
 
 function getPrintCss(){return`@page{margin:0!important;padding:0!important;size:auto}*{box-sizing:border-box;margin:0;padding:0}html,body{margin:0!important;padding:0!important;background:#fff;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}.pages{display:block}.page{width:72mm;border:1px dashed #ccc;margin:2mm;position:relative;page-break-after:always;break-after:page}@media print{@page{margin:0!important;padding:0!important;size:auto}html,body{margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pages{display:block}.page{border:none;margin:0!important;padding:0!important;page-break-after:always;break-after:page}}`;}
@@ -2022,12 +2024,12 @@ function showRegRc(p){
 }
 function showMoveRc(items){
   lastMoveItems=items;
-  const pages=items.map(({p,fromTable})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable)}</div>`).join('');
+  const pages=items.map(({p,fromTable,fromSeat})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable,fromSeat)}</div>`).join('');
   openWin(pages);
   if(window._fbPrintRequest)window._fbPrintRequest(pages,`이동 ${items.map(x=>x.p.name).join(', ')}`);
 }
 function closeOv(id){document.getElementById(id).classList.remove('on');}
-function printBalRc(){if(!lastMoveItems.length)return;const pages=lastMoveItems.map(({p,fromTable})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable)}</div>`).join('');openWin(pages);}
+function printBalRc(){if(!lastMoveItems.length)return;const pages=lastMoveItems.map(({p,fromTable,fromSeat})=>`<div class="page">${buildRcHtml(p,'move',true,fromTable,fromSeat)}</div>`).join('');openWin(pages);}
 
 function parseTableInput(str){
   const nums=new Set();
