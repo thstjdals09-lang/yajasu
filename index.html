@@ -1956,7 +1956,7 @@ function buildRcHtml(p,type,isMove,fromTable){
   const topImg=cfg.topImg?`<div style="text-align:${cfg.topImgAlign||'center'};margin-bottom:8px;opacity:${cfg.topImgOpacity||1}"><img src="${cfg.topImg}" style="height:${cfg.topImgHeight||60}px;max-width:100%;object-fit:contain"></div>`:'';
   const botImg=cfg.bottomImg?`<div style="text-align:${cfg.bottomImgAlign||'center'};margin-top:8px;opacity:${cfg.bottomImgOpacity||1}"><img src="${cfg.bottomImg}" style="height:${cfg.bottomImgHeight||60}px;max-width:100%;object-fit:contain"></div>`:'';
   const midImg=cfg.midImg?`<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0;opacity:${cfg.midImgOpacity||0.08}"><img src="${cfg.midImg}" style="width:${cfg.midImgSize||120}px;height:${cfg.midImgSize||120}px;object-fit:contain"></div>`:'';
-  const wrap=html=>`<div style="position:relative;background:${paper};font-family:'${font}',Arial,sans-serif;color:${c};line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact">${bgLayer}${midImg}<div style="position:relative;z-index:1;padding:${cfg.paddingTop||6}mm ${cfg.paddingRight||6}mm ${cfg.paddingBottom||6}mm ${cfg.paddingLeft||6}mm">${topImg}${html}${botImg}</div></div>`;
+  const _p=v=>(v===undefined||v===null||v==='')?6:Number(v);const wrap=html=>`<div style="position:relative;background:${paper};font-family:'${font}',Arial,sans-serif;color:${c};line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact">${bgLayer}${midImg}<div style="position:relative;z-index:1;padding:${_p(cfg.paddingTop)}mm ${_p(cfg.paddingRight)}mm ${_p(cfg.paddingBottom)}mm ${_p(cfg.paddingLeft)}mm">${topImg}${html}${botImg}</div></div>`;
   const bw=key=>cfg[key]?'700':'400';
 
   if(isMove){return wrap(`
@@ -1998,7 +1998,7 @@ function updatePrev(){
   if(pm)pm.innerHTML=buildRcHtml(mock,'move',true,1);
 }
 
-function getPrintCss(){return`*{box-sizing:border-box;margin:0;padding:0}body{margin:0;padding:0;background:#fff;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}.pages{display:block}.page{width:72mm;padding:6mm;border:1px dashed #ccc;margin:2mm;position:relative;page-break-after:always;break-after:page}@media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pages{display:block}.page{border:none;margin:0;page-break-after:always;break-after:page}}`;}
+function getPrintCss(){return`@page{margin:0!important;padding:0!important;size:auto}*{box-sizing:border-box;margin:0;padding:0}html,body{margin:0!important;padding:0!important;background:#fff;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}.pages{display:block}.page{width:72mm;border:1px dashed #ccc;margin:2mm;position:relative;page-break-after:always;break-after:page}@media print{@page{margin:0!important;padding:0!important;size:auto}html,body{margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pages{display:block}.page{border:none;margin:0!important;padding:0!important;page-break-after:always;break-after:page}}`;}
 
 function openWin(pages){
   let fr=document.getElementById('_printFrame');
