@@ -1966,10 +1966,8 @@ function buildRcHtml(p,type,isMove,fromTable){
 ${dv}<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')};color:${c}"><span>${cfg.evLabel}</span><span>${p.evName}</span></div>
 <div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')};color:${c}"><span>${cfg.dateLabel}</span><span>${ds} ${ts}</span></div>${evMsg}${dv}
 <div style="text-align:center;font-size:${sz.prevLabel}px;font-weight:400;color:${c};margin-bottom:2px">${cfg.prevLabel}</div>
-<div style="text-align:center;font-size:${sz.prevNum}px;font-weight:400;color:${c};text-decoration:line-through;margin-bottom:6px">T${String(fromTable).padStart(2,'0')}</div>
-<div style="text-align:center;font-size:${sz.newLabel}px;font-weight:700;color:${c};margin-bottom:3px">▼ ${cfg.newLabel}</div>
-<div style="text-align:center;font-size:${sz.num}px;font-weight:${bw('numBold')};letter-spacing:4px;margin:8px 0 2px;color:${c}">${String(p.num).padStart(3,'0')}</div>
-<div style="text-align:center;font-size:${sz.numLabel}px;font-weight:400;color:${c};margin-bottom:6px">${cfg.numLabel}</div>${dv}
+<div style="text-align:center;font-size:${sz.prevNum}px;font-weight:700;color:${c};text-decoration:line-through;margin-bottom:8px">TABLE ${String(fromTable).padStart(2,'0')}</div>
+<div style="text-align:center;font-size:${sz.newLabel}px;font-weight:700;color:${c};margin-bottom:6px">▼ ${cfg.newLabel}</div>
 <div style="text-align:center;font-size:${sz.seat}px;font-weight:${bw('seatBold')};margin-bottom:2px;color:${c}">TABLE ${String(p.table).padStart(2,'0')} — SEAT ${p.seat}</div>
 <div style="text-align:center;font-size:${sz.seatSub}px;font-weight:${bw('seatSubBold')};color:${c};margin-bottom:2px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
 <div style="display:flex;gap:8px;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('nameBold')};color:${c}"><span>${cfg.nameLabel}</span><span>${p.name}</span></div>${dv}
