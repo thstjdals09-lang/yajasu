@@ -765,9 +765,9 @@ let RC={
     logo:'HOLDEM TOURNAMENT',sub:'참가 확인증',chipLabel:'칩 수령용',seatLabel:'좌석 확인용',
     footerChip:'칩을 수령하신 후 자리에 착석해주세요.',footerSeat:'Good Luck & Have Fun!',
     evLabel:'이벤트',dateLabel:'일시',numLabel:'참가 번호',nameLabel:'참가자',
-    font:'Courier New',logoSize:15,subSize:11,typeSize:11,bodySize:12,numSize:30,seatSize:14,seatSubSize:11,footerSize:11,
-    logoBold:true,subBold:false,typeBold:true,bodyBold:false,numBold:true,seatBold:true,seatSubBold:false,footerBold:false,nameBold:true,seatSubDim:true,
-    divStyle:'dashed',textColor:'#111',paperColor:'#ffffff',
+    font:'Arial',logoSize:15,subSize:11,typeSize:11,bodySize:12,numSize:30,numLabelSize:10,seatSize:14,seatSubSize:11,footerSize:11,prevLabelSize:10,newLabelSize:10,prevNumSize:14,
+    logoBold:true,subBold:false,typeBold:true,bodyBold:false,numBold:true,seatBold:true,seatSubBold:false,footerBold:false,nameBold:true,
+    divStyle:'dashed',textColor:'#111111',paperColor:'#ffffff',
     paddingTop:6,paddingBottom:6,paddingLeft:6,paddingRight:6,
     bgImg:'',bgOpacity:0.15,bgSize:'cover',bgPos:'center',
     topImg:'',topImgOpacity:1.0,topImgHeight:60,topImgAlign:'center',
@@ -778,8 +778,9 @@ let RC={
     logo:'HOLDEM TOURNAMENT',sub:'좌석 이동 확인증',label:'좌석 이동 확인증',
     footer:'새 좌석에 착석해주세요.',prevLabel:'이전 테이블',newLabel:'새 좌석',
     evLabel:'이벤트',dateLabel:'일시',numLabel:'참가 번호',nameLabel:'참가자',
-    font:'Courier New',logoSize:15,subSize:11,typeSize:11,bodySize:12,numSize:30,seatSize:14,footerSize:11,
-    divStyle:'dashed',textColor:'#111',paperColor:'#ffffff',
+    font:'Arial',logoSize:15,subSize:11,typeSize:11,bodySize:12,numSize:30,numLabelSize:10,seatSize:14,seatSubSize:11,footerSize:11,prevLabelSize:10,newLabelSize:10,prevNumSize:14,
+    logoBold:true,subBold:false,typeBold:true,bodyBold:false,numBold:true,seatBold:true,seatSubBold:false,footerBold:false,nameBold:true,
+    divStyle:'dashed',textColor:'#111111',paperColor:'#ffffff',
     paddingTop:6,paddingBottom:6,paddingLeft:6,paddingRight:6,
     bgImg:'',bgOpacity:0.15,bgSize:'cover',bgPos:'center',
     topImg:'',topImgOpacity:1.0,topImgHeight:60,topImgAlign:'center',
@@ -1903,7 +1904,7 @@ function buildTb(mode){
   const sections=[
     {title:'문구',html:tf(),open:true},
     {title:'볼드 설정',html:[bf('로고','logoBold'),bf('서브타이틀','subBold'),bf('타입 라벨','typeBold'),bf('본문 (이벤트·일시)','bodyBold'),bf('참가 번호','numBold'),bf('테이블·좌석 (영문)','seatBold'),bf('테이블·좌석 (한글)','seatSubBold'),bf('참가자 이름','nameBold'),bf('하단 문구','footerBold')].join(''),open:false},
-    {title:'폰트 크기',html:[nf('로고','logoSize',10,28),nf('서브타이틀','subSize',8,20),nf('타입 라벨','typeSize',8,20),nf('본문','bodySize',8,20),nf('참가번호 (큰 숫자)','numSize',16,60),nf('테이블·좌석 (영문)','seatSize',10,28),nf('테이블·좌석 (한글)','seatSubSize',8,20),nf('하단 문구','footerSize',8,18)].join(''),open:false},
+    {title:'폰트 크기',html:[nf('로고','logoSize',8,30),nf('서브타이틀','subSize',8,20),nf('타입 라벨','typeSize',8,20),nf('본문 (이벤트·일시)','bodySize',8,20),nf('참가번호 (큰 숫자)','numSize',16,60),nf('참가번호 라벨','numLabelSize',6,16),nf('테이블·좌석 (영문)','seatSize',8,28),nf('테이블·좌석 (한글)','seatSubSize',6,20),nf('이전테이블 라벨','prevLabelSize',6,16),nf('새좌석 라벨','newLabelSize',6,16),nf('이전테이블 번호','prevNumSize',8,24),nf('하단 문구','footerSize',6,18)].join(''),open:false},
     {title:'여백 (mm)',html:[nf('상단','paddingTop',0,30),nf('하단','paddingBottom',0,30),nf('좌','paddingLeft',0,20),nf('우','paddingRight',0,20)].join(''),open:true},
     {title:'폰트 & 색상',html:sf('폰트','font',['Courier New','Georgia','Arial','Times New Roman','serif','monospace','sans-serif'])+sf('구분선','divStyle',['dashed','solid','double','none'])+`<div class="fg"><label>글자색</label><input type="color" value="${cfg.textColor||'#111'}" oninput="setRC('${mode}','textColor',this.value)"></div>`+`<div class="fg"><label>종이 배경색</label><input type="color" value="${cfg.paperColor||'#ffffff'}" oninput="setRC('${mode}','paperColor',this.value)"></div>`,open:false},
     {title:'배경 이미지 (워터마크)',html:imgZone('배경 이미지','bgImg','bgOpacity',sf('배경 크기','bgSize',['cover','contain','auto'])+sf('배경 위치','bgPos',['center','top','bottom','left','right'])),open:false},
@@ -1928,52 +1929,65 @@ function divH(style,color){
 }
 
 function buildRcHtml(p,type,isMove,fromTable){
-  // 이동 영수증은 등록 영수증의 스타일(폰트,색상,이미지)을 공유하고 텍스트만 별도
   const cfg=isMove?{...RC.entry,...RC.move}:RC.entry;
   const pad=n=>String(n).padStart(2,'0');
   const d=p.time instanceof Date?p.time:new Date(p.time);
   const ds=d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate()),ts=pad(d.getHours())+':'+pad(d.getMinutes());
-  const ev=evs.find(e=>e.id===p.eventId),evMsg=ev&&ev.msg?`<div style="text-align:center;font-size:${cfg.footerSize||11}px;color:${cfg.textColor||'#111'}88;font-style:italic;margin:4px 0">${ev.msg}</div>`:'';
-  const c=cfg.textColor||'#111',font=cfg.font||'Courier New',paper=cfg.paperColor||'#ffffff';
-  const sz={logo:cfg.logoSize||15,sub:cfg.subSize||11,type:cfg.typeSize||11,body:cfg.bodySize||12,num:cfg.numSize||30,seat:cfg.seatSize||14,seatSub:cfg.seatSubSize||11,footer:cfg.footerSize||11};
+  const ev=evs.find(e=>e.id===p.eventId),evMsg=ev&&ev.msg?`<div style="text-align:center;font-size:${cfg.bodySize||12}px;color:${cfg.textColor||'#111111'};font-style:italic;margin:4px 0">${ev.msg}</div>`:'';
+  const c=cfg.textColor||'#111111';
+  const font=cfg.font||'Arial';
+  const paper=cfg.paperColor||'#ffffff';
+  const sz={
+    logo:cfg.logoSize||15,
+    sub:cfg.subSize||11,
+    type:cfg.typeSize||11,
+    body:cfg.bodySize||12,
+    num:cfg.numSize||30,
+    numLabel:cfg.numLabelSize||10,
+    seat:cfg.seatSize||14,
+    seatSub:cfg.seatSubSize||11,
+    footer:cfg.footerSize||11,
+    prevLabel:cfg.prevLabelSize||10,
+    newLabel:cfg.newLabelSize||10,
+    prevNum:cfg.prevNumSize||14,
+  };
   const dv=divH(cfg.divStyle,c);
   const bgLayer=cfg.bgImg?`<div style="position:absolute;inset:0;background-image:url('${cfg.bgImg}');background-size:${cfg.bgSize||'cover'};background-position:${cfg.bgPos||'center'};opacity:${cfg.bgOpacity||0.15};pointer-events:none"></div>`:'';
   const topImg=cfg.topImg?`<div style="text-align:${cfg.topImgAlign||'center'};margin-bottom:8px;opacity:${cfg.topImgOpacity||1}"><img src="${cfg.topImg}" style="height:${cfg.topImgHeight||60}px;max-width:100%;object-fit:contain"></div>`:'';
   const botImg=cfg.bottomImg?`<div style="text-align:${cfg.bottomImgAlign||'center'};margin-top:8px;opacity:${cfg.bottomImgOpacity||1}"><img src="${cfg.bottomImg}" style="height:${cfg.bottomImgHeight||60}px;max-width:100%;object-fit:contain"></div>`:'';
   const midImg=cfg.midImg?`<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0;opacity:${cfg.midImgOpacity||0.08}"><img src="${cfg.midImg}" style="width:${cfg.midImgSize||120}px;height:${cfg.midImgSize||120}px;object-fit:contain"></div>`:'';
-  const wrap=content=>`<div style="position:relative;background:${paper};font-family:'${font}',Arial,sans-serif;color:${c};line-height:1.65;-webkit-print-color-adjust:exact;print-color-adjust:exact">${bgLayer}${midImg}<div style="position:relative;z-index:1;padding:${cfg.paddingTop||6}mm ${cfg.paddingRight||6}mm ${cfg.paddingBottom||6}mm ${cfg.paddingLeft||6}mm">${topImg}${content}${botImg}</div></div>`;
-
+  const wrap=html=>`<div style="position:relative;background:${paper};font-family:'${font}',Arial,sans-serif;color:${c};line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact">${bgLayer}${midImg}<div style="position:relative;z-index:1;padding:${cfg.paddingTop||6}mm ${cfg.paddingRight||6}mm ${cfg.paddingBottom||6}mm ${cfg.paddingLeft||6}mm">${topImg}${html}${botImg}</div></div>`;
   const bw=key=>cfg[key]?'700':'400';
 
   if(isMove){return wrap(`
-<div style="text-align:center;font-weight:${bw('logoBold')};letter-spacing:1px;margin-bottom:1px;font-size:${sz.logo}px">${cfg.logo}</div>
-<div style="text-align:center;font-weight:${bw('subBold')};color:${c}99;margin-bottom:10px;font-size:${sz.sub}px">${cfg.sub}</div>
-<div style="text-align:center;font-weight:${bw('typeBold')};letter-spacing:2px;padding:3px 0;margin-bottom:8px;border-top:1px solid ${c}66;border-bottom:1px solid ${c}66;font-size:${sz.type}px">${cfg.label}</div>
-${dv}<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')}"><span>${cfg.evLabel}</span><span>${p.evName}</span></div>
-<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')}"><span>${cfg.dateLabel}</span><span>${ds} ${ts}</span></div>${evMsg}${dv}
-<div style="text-align:center;font-size:${Math.max(8,sz.body-2)}px;color:${c}77;margin-bottom:2px">${cfg.prevLabel}</div>
-<div style="text-align:center;font-size:${sz.body+2}px;color:${c}55;text-decoration:line-through;margin-bottom:6px">T${String(fromTable).padStart(2,'0')}</div>
-<div style="text-align:center;font-size:${Math.max(8,sz.body-2)}px;color:#4ade80;margin-bottom:3px">▼ ${cfg.newLabel}</div>
-<div style="text-align:center;font-size:${sz.num}px;font-weight:${bw('numBold')};letter-spacing:4px;margin:8px 0 2px;color:#2563eb">${String(p.num).padStart(3,'0')}</div>
-<div style="text-align:center;font-size:${Math.max(8,sz.body-2)}px;color:${c}77;margin-bottom:6px">${cfg.numLabel}</div>${dv}
-<div style="text-align:center;font-size:${sz.seat}px;font-weight:${bw('seatBold')};margin-bottom:2px">TABLE ${String(p.table).padStart(2,'0')} — SEAT ${p.seat}</div>
-<div style="text-align:center;font-size:${sz.seatSub}px;font-weight:${bw('seatSubBold')};color:${c}${cfg.seatSubDim!==false?'88':''};margin-bottom:2px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
-<div style="display:flex;gap:8px;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('nameBold')}"><span>${cfg.nameLabel}</span><span>${p.name}</span></div>${dv}
-<div style="text-align:center;font-size:${sz.footer}px;font-weight:${bw('footerBold')};color:${c}88;margin-top:8px">${cfg.footer}</div>`);}
+<div style="text-align:center;font-weight:${bw('logoBold')};letter-spacing:1px;margin-bottom:2px;font-size:${sz.logo}px;color:${c}">${cfg.logo}</div>
+<div style="text-align:center;font-weight:${bw('subBold')};margin-bottom:10px;font-size:${sz.sub}px;color:${c}">${cfg.sub}</div>
+<div style="text-align:center;font-weight:${bw('typeBold')};letter-spacing:2px;padding:3px 0;margin-bottom:8px;border-top:1px solid ${c};border-bottom:1px solid ${c};font-size:${sz.type}px;color:${c}">${cfg.label}</div>
+${dv}<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')};color:${c}"><span>${cfg.evLabel}</span><span>${p.evName}</span></div>
+<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')};color:${c}"><span>${cfg.dateLabel}</span><span>${ds} ${ts}</span></div>${evMsg}${dv}
+<div style="text-align:center;font-size:${sz.prevLabel}px;font-weight:400;color:${c};margin-bottom:2px">${cfg.prevLabel}</div>
+<div style="text-align:center;font-size:${sz.prevNum}px;font-weight:400;color:${c};text-decoration:line-through;margin-bottom:6px">T${String(fromTable).padStart(2,'0')}</div>
+<div style="text-align:center;font-size:${sz.newLabel}px;font-weight:700;color:${c};margin-bottom:3px">▼ ${cfg.newLabel}</div>
+<div style="text-align:center;font-size:${sz.num}px;font-weight:${bw('numBold')};letter-spacing:4px;margin:8px 0 2px;color:${c}">${String(p.num).padStart(3,'0')}</div>
+<div style="text-align:center;font-size:${sz.numLabel}px;font-weight:400;color:${c};margin-bottom:6px">${cfg.numLabel}</div>${dv}
+<div style="text-align:center;font-size:${sz.seat}px;font-weight:${bw('seatBold')};margin-bottom:2px;color:${c}">TABLE ${String(p.table).padStart(2,'0')} — SEAT ${p.seat}</div>
+<div style="text-align:center;font-size:${sz.seatSub}px;font-weight:${bw('seatSubBold')};color:${c};margin-bottom:2px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
+<div style="display:flex;gap:8px;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('nameBold')};color:${c}"><span>${cfg.nameLabel}</span><span>${p.name}</span></div>${dv}
+<div style="text-align:center;font-size:${sz.footer}px;font-weight:${bw('footerBold')};color:${c};margin-top:8px">${cfg.footer}</div>`);}
 
   const isChip=type==='chip',footer=isChip?cfg.footerChip:cfg.footerSeat,typeLabel=isChip?cfg.chipLabel:cfg.seatLabel;
   return wrap(`
-<div style="text-align:center;font-weight:${bw('logoBold')};letter-spacing:1px;margin-bottom:1px;font-size:${sz.logo}px">${cfg.logo}</div>
-<div style="text-align:center;font-weight:${bw('subBold')};color:${c}99;margin-bottom:10px;font-size:${sz.sub}px">${cfg.sub}</div>
-<div style="text-align:center;font-weight:${bw('typeBold')};letter-spacing:2px;padding:3px 0;margin-bottom:8px;border-top:1px solid ${c}66;border-bottom:1px solid ${c}66;font-size:${sz.type}px">${typeLabel}</div>
-${dv}<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')}"><span>${cfg.evLabel}</span><span>${p.evName}</span></div>
-<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')}"><span>${cfg.dateLabel}</span><span>${ds} ${ts}</span></div>${evMsg}${dv}
-<div style="text-align:center;font-size:${sz.num}px;font-weight:${bw('numBold')};letter-spacing:4px;margin:8px 0 2px">${String(p.num).padStart(3,'0')}</div>
-<div style="text-align:center;font-size:${Math.max(8,sz.body-2)}px;color:${c}77;margin-bottom:6px">${cfg.numLabel}</div>${dv}
-<div style="text-align:center;font-size:${sz.seat}px;font-weight:${bw('seatBold')};margin-bottom:2px">TABLE ${String(p.table).padStart(2,'0')} — SEAT ${p.seat}</div>
-<div style="text-align:center;font-size:${sz.seatSub}px;font-weight:${bw('seatSubBold')};color:${c}${cfg.seatSubDim!==false?'88':''};margin-bottom:2px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
-<div style="display:flex;gap:8px;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('nameBold')}"><span>${cfg.nameLabel}</span><span>${p.name}</span></div>${dv}
-<div style="text-align:center;font-size:${sz.footer}px;font-weight:${bw('footerBold')};color:${c}88;margin-top:8px">${footer}</div>`);
+<div style="text-align:center;font-weight:${bw('logoBold')};letter-spacing:1px;margin-bottom:2px;font-size:${sz.logo}px;color:${c}">${cfg.logo}</div>
+<div style="text-align:center;font-weight:${bw('subBold')};margin-bottom:10px;font-size:${sz.sub}px;color:${c}">${cfg.sub}</div>
+<div style="text-align:center;font-weight:${bw('typeBold')};letter-spacing:2px;padding:3px 0;margin-bottom:8px;border-top:1px solid ${c};border-bottom:1px solid ${c};font-size:${sz.type}px;color:${c}">${typeLabel}</div>
+${dv}<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')};color:${c}"><span>${cfg.evLabel}</span><span>${p.evName}</span></div>
+<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('bodyBold')};color:${c}"><span>${cfg.dateLabel}</span><span>${ds} ${ts}</span></div>${evMsg}${dv}
+<div style="text-align:center;font-size:${sz.num}px;font-weight:${bw('numBold')};letter-spacing:4px;margin:8px 0 2px;color:${c}">${String(p.num).padStart(3,'0')}</div>
+<div style="text-align:center;font-size:${sz.numLabel}px;font-weight:400;color:${c};margin-bottom:6px">${cfg.numLabel}</div>${dv}
+<div style="text-align:center;font-size:${sz.seat}px;font-weight:${bw('seatBold')};margin-bottom:2px;color:${c}">TABLE ${String(p.table).padStart(2,'0')} — SEAT ${p.seat}</div>
+<div style="text-align:center;font-size:${sz.seatSub}px;font-weight:${bw('seatSubBold')};color:${c};margin-bottom:2px">테이블 ${p.table}번 · ${p.seat}번 좌석</div>${dv}
+<div style="display:flex;gap:8px;margin:2px 0;font-size:${sz.body}px;font-weight:${bw('nameBold')};color:${c}"><span>${cfg.nameLabel}</span><span>${p.name}</span></div>${dv}
+<div style="text-align:center;font-size:${sz.footer}px;font-weight:${bw('footerBold')};color:${c};margin-top:8px">${footer}</div>`);
 }
 
 function updatePrev(){
